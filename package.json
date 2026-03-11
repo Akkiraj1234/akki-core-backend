@@ -2,9 +2,9 @@
   "name": "akki-core-backend",
   "version": "1.0.0",
   "description": "Core backend infrastructure for my personal projects like akhand.dev. Provides API security, session and rate limiting, Redis storage with memory fallback, task scheduling, and external data collectors powering multiple applications.",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "dev": "node src/server.js",
+    "dev": "node src/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

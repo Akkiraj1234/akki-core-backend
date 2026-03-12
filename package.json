@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "dev": "node src/main.js",
+    "start": "node src/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -12,7 +13,7 @@
     "url": "git+https://github.com/akkiraj1234/akki-core-backend.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Akhand Raj",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {

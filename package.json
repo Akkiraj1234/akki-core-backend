@@ -4,7 +4,7 @@
   "description": "Core backend infrastructure for my personal projects like akhand.dev. Provides API security, session and rate limiting, Redis storage with memory fallback, task scheduling, and external data collectors powering multiple applications.",
   "main": "main.js",
   "scripts": {
-    "dev": "node src/main.js",
+    "tool": "node scripts/dev-runner.js",
     "start": "node src/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -22,6 +22,7 @@
   "homepage": "https://github.com/akkiraj1234/akki-core-backend#readme",
   "dependencies": {
     "fastify": "^5.8.2",
-    "nanoid": "^5.1.6"
+    "nanoid": "^5.1.6",
+    "neo-blessed": "^0.2.0"
   }
 }

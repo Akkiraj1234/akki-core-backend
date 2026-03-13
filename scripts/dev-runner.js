@@ -36,8 +36,8 @@ const box = blessed.box({
 // Script list
 const list = blessed.list({
   parent: box,
-  width: "100%",
-  height: "100%-2",
+  width: "100%-3",
+  height: "100%-3",
   top: 1,
   keys: true,
   mouse: true,

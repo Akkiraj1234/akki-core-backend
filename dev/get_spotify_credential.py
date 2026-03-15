@@ -1,6 +1,7 @@
 import os
 import sys
 import base64
+import argparse
 import dotenv
 import secrets
 import asyncio
@@ -9,6 +10,7 @@ import webbrowser
 import urllib.parse
 import aiohttp
 import concurrent.futures
+import customtkinter as ctk
 import json
 from datetime import datetime
 
@@ -23,8 +25,6 @@ from http.server import (
     HTTPServer
 )
 from pathlib import Path
-from PIL import Image, ImageTk
-import customtkinter as ctk
 
 
 # Configs files ====================================================
@@ -44,11 +44,30 @@ SPOTIFY_SCOPES = [
     
 # ==================================================================
 
-def get_image(path: Path, size = (100, 100)) -> ImageTk:
-    if not path.exists():
-        raise ValueError("path is not correct")
-    img = Image.open(path)
-    return ctk.CTkImage(img, size=size)
+GUI_REQUESTED = any(arg in ("-gui", "--gui") for arg in sys.argv[1:])
+if GUI_REQUESTED:
+    from PIL import Image, ImageTk
+    import customtkinter as ctk
+
+
+if GUI_REQUESTED:
+    def get_image(path: Path, size = (100, 100)) -> ImageTk:
+        if not path.exists():
+            raise ValueError("path is not correct")
+        img = Image.open(path)
+        return ctk.CTkImage(img, size=size)
+else:
+    class _CtkStub:
+        def __getattr__(self, _name):
+            return object
+
+    class ImageTk:  # type: ignore[no-redef]
+        pass
+
+    ctk = _CtkStub()  # type: ignore[assignment]
+
+    def get_image(path: Path, size = (100, 100)) -> None:
+        return None
 
 
 def random_number_generator(bytes_size:int = 16) -> str:
@@ -198,6 +217,173 @@ class SpotifyAuth:
         return self.credentials
 
 
+def save_credentials_to_env(
+    creds: Dict[str, Any], env_path: Path = Path("secret.env")
+) -> Path:
+    current_lines: List[str] = []
+    env_map: Dict[str, str] = {}
+
+    if env_path.exists():
+        current_lines = env_path.read_text(encoding="utf-8").splitlines()
+        for line in current_lines:
+            if not line or line.strip().startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            env_map[key.strip()] = value
+
+    for key, value in creds.items():
+        env_key = f"SPOTIFY_AUTH_{str(key).upper()}"
+        if isinstance(value, (dict, list)):
+            env_value = json.dumps(value, separators=(",", ":"), ensure_ascii=True)
+        else:
+            env_value = str(value)
+        env_map[env_key] = env_value
+
+    updated_lines: List[str] = []
+    seen_keys = set()
+    for line in current_lines:
+        if not line or line.strip().startswith("#") or "=" not in line:
+            updated_lines.append(line)
+            continue
+        key, _ = line.split("=", 1)
+        key = key.strip()
+        if key in env_map:
+            updated_lines.append(f"{key}={env_map[key]}")
+            seen_keys.add(key)
+        else:
+            updated_lines.append(line)
+
+    for key, value in env_map.items():
+        if key not in seen_keys:
+            updated_lines.append(f"{key}={value}")
+
+    env_path.write_text("\n".join(updated_lines).rstrip() + "\n", encoding="utf-8")
+    return env_path
+
+
+def write_credentials_json(creds: Dict[str, Any]) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = Path(f"spotify_credentials_{timestamp}.json")
+    out_path.write_text(
+        json.dumps(creds, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+    return out_path
+
+
+class SpotifyCredentialCLI:
+    def __init__(self) -> None:
+        self.scopes: List[str] = list(SPOTIFY_SCOPES)
+        self.latest_creds: Optional[Dict[str, Any]] = None
+
+    def _print_menu(self) -> None:
+        print("\nSpotify Credential Retriever (CLI)")
+        print("1. Show scopes")
+        print("2. Add scope")
+        print("3. Remove scope")
+        print("4. Get session")
+        print("5. End")
+        print("---------")
+
+    def _print_post_session_menu(self) -> None:
+        print("\nSession Actions")
+        print("1. Save credentials to secret.env")
+        print("2. Download credentials JSON")
+        print("3. End")
+        print("---------")
+
+    def _show_scopes(self) -> None:
+        print("\nSelected scopes:")
+        if not self.scopes:
+            print("- (none)")
+            return
+        for i, scope in enumerate(self.scopes, start=1):
+            print(f"{i}. {scope}")
+
+    def _add_scope(self) -> None:
+        scope = input("Enter scope to add: ").strip()
+        if not scope:
+            print("[WARN] Scope is empty.")
+            return
+        if scope in self.scopes:
+            print(f"[WARN] Scope already exists: {scope}")
+            return
+        self.scopes.append(scope)
+        print(f"[INFO] Added scope: {scope}")
+
+    def _remove_scope(self) -> None:
+        if not self.scopes:
+            print("[WARN] No scopes to remove.")
+            return
+        self._show_scopes()
+        raw = input("Enter scope number to remove: ").strip()
+        if not raw.isdigit():
+            print("[ERROR] Please enter a valid number.")
+            return
+        idx = int(raw)
+        if idx < 1 or idx > len(self.scopes):
+            print("[ERROR] Scope number out of range.")
+            return
+        removed = self.scopes.pop(idx - 1)
+        print(f"[INFO] Removed scope: {removed}")
+
+    def _get_session(self) -> None:
+        try:
+            print("[INFO] Starting Spotify auth flow...")
+            spotify = SpotifyAuth()
+            creds = asyncio.run(spotify.flow_async(self.scopes))
+            self.latest_creds = creds
+            print("[INFO] Login successful. Credentials received.")
+            self._post_session_actions()
+        except Exception as err:
+            print(f"[ERROR] Login failed: {err}")
+
+    def _post_session_actions(self) -> None:
+        while True:
+            self._print_post_session_menu()
+            choice = input("choose : ").strip()
+            if choice == "1":
+                self._save_to_env()
+            elif choice == "2":
+                self._download_json()
+            elif choice == "3":
+                break
+            else:
+                print("[ERROR] Invalid option. Pick 1-3.")
+
+    def _save_to_env(self) -> None:
+        if not self.latest_creds:
+            print("[ERROR] No credentials to save.")
+            return
+        env_path = save_credentials_to_env(self.latest_creds)
+        print(f"[INFO] Credentials saved to {env_path}")
+
+    def _download_json(self) -> None:
+        if not self.latest_creds:
+            print("[ERROR] No credentials to download.")
+            return
+        out_path = write_credentials_json(self.latest_creds)
+        print(f"[INFO] Downloaded credentials JSON: {out_path.name}")
+
+    def run(self) -> None:
+        while True:
+            self._print_menu()
+            choice = input("choose : ").strip()
+            if choice == "1":
+                self._show_scopes()
+            elif choice == "2":
+                self._add_scope()
+            elif choice == "3":
+                self._remove_scope()
+            elif choice == "4":
+                self._get_session()
+            elif choice == "5":
+                print("[INFO] Bye.")
+                break
+            else:
+                print("[ERROR] Invalid option. Pick 1-5.")
+
+
 class AsyncWorker:
     """
     Run an asyncio event loop in a dedicated thread.
@@ -253,9 +439,9 @@ class TKList(ctk.CTkScrollableFrame):
 
         self.normal_text_style = text_style
         self.scope_list: list[str] = []
-        self.items: list[ctk.CTkFrame] = []
+        self.items= []
 
-        self.entry_widget: ctk.CTkEntry | None = None
+        self.entry_widget = None
 
         self._build_ui(scope_list or [])
         
@@ -379,7 +565,7 @@ class TKList(ctk.CTkScrollableFrame):
         self.items.append(item_frame)
         self.scope_list.append(text)
 
-    def _delete_item(self, frame: ctk.CTkFrame, text: str) -> None:
+    def _delete_item(self, frame,  text: str) -> None:
         """
         Remove a scope item from the UI and internal state.
         """
@@ -571,46 +757,7 @@ class App(ctk.CTk):
         if not self.latest_creds:
             self.set_status("No credentials to save.", "#c62828")
             return
-
-        env_path = Path("secret.env")
-        current_lines: List[str] = []
-        env_map: Dict[str, str] = {}
-
-        if env_path.exists():
-            current_lines = env_path.read_text(encoding="utf-8").splitlines()
-            for line in current_lines:
-                if not line or line.strip().startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                env_map[key.strip()] = value
-
-        for key, value in self.latest_creds.items():
-            env_key = f"SPOTIFY_AUTH_{str(key).upper()}"
-            if isinstance(value, (dict, list)):
-                env_value = json.dumps(value, separators=(",", ":"), ensure_ascii=True)
-            else:
-                env_value = str(value)
-            env_map[env_key] = env_value
-
-        updated_lines: List[str] = []
-        seen_keys = set()
-        for line in current_lines:
-            if not line or line.strip().startswith("#") or "=" not in line:
-                updated_lines.append(line)
-                continue
-            key, _ = line.split("=", 1)
-            key = key.strip()
-            if key in env_map:
-                updated_lines.append(f"{key}={env_map[key]}")
-                seen_keys.add(key)
-            else:
-                updated_lines.append(line)
-
-        for key, value in env_map.items():
-            if key not in seen_keys:
-                updated_lines.append(f"{key}={value}")
-
-        env_path.write_text("\n".join(updated_lines).rstrip() + "\n", encoding="utf-8")
+        save_credentials_to_env(self.latest_creds)
         self.set_status("Credentials saved to secret.env", "#2e7d32")
         print("Credentials saved to secret.env")
 
@@ -619,17 +766,27 @@ class App(ctk.CTk):
             self.set_status("No credentials to download.", "#c62828")
             return
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_path = Path(f"spotify_credentials_{timestamp}.json")
-        out_path.write_text(
-            json.dumps(self.latest_creds, indent=2, ensure_ascii=True) + "\n",
-            encoding="utf-8",
-        )
+        out_path = write_credentials_json(self.latest_creds)
         self.set_status(f"Downloaded: {out_path.name}", "#2e7d32")
         print(f"Downloaded credentials JSON: {out_path.name}")
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Spotify credential retriever")
+    parser.add_argument(
+        "-gui",
+        "--gui",
+        action="store_true",
+        help="Run in Tkinter GUI mode.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    print("Config loaded")
-    app = App()
-    app.build()
-    app.mainloop()
+    args = parse_args()
+    if args.gui:
+        print("Config loaded")
+        app = App()
+        app.build()
+        app.mainloop()
+    else:
+        SpotifyCredentialCLI().run()

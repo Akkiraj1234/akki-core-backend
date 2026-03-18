@@ -1,5 +1,5 @@
-const axio = require("axios")
-const { SECRET } = require("./server/config.js")
+const SECRET = require("./config");
+const axios = require('axios');
 
 // config 
 const current_playing_endpoint = "https://api.spotify.com/v1/me/player/currently-playing";

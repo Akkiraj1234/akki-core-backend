@@ -1,41 +1,12 @@
+const axio = require("axios")
+const { SECRET } = require("./server/config.js")
+
+// config 
 const current_playing_endpoint = "https://api.spotify.com/v1/me/player/currently-playing";
 const profile_info_endpoint = "https://api.spotify.com/v1/me/player/currently-playing";
 
-class HttpClient {
-	constructor({
-		baseURL,
-		AccessToken,
-		refeshTokenURL,
-		headers = {},
-		timeout = 5000
-	}){
-		this.baseURL = baseURL;
-		this.AccessToken = AccessToken;
-		this.refeshTokenURL = refeshTokenURL;
-		this.headers = headers;
-		this.timeout = timeout;
-	}
 
-	async request(endpoint, options = {}, retry = true){
-		const res = await fetch(
-			this.baseURL + endpoint,
-			{headers}
-		
-		)
-	}
-	
-}
-const Token = {}
 
-class Spotifyfetcher{
-	constructor({
-		token = Token
-	}){
-		this.token = token
-		this.accsess_token = this.token.accsess_token
-		this.http_client = new Http_client
-	}
-}
 
 async function getSpotifyCurrentPlaying(accsess_token) {
 	const res = await fetch(

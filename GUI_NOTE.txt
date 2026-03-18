@@ -1,2 +1,0 @@
-I made the GUI because I wanted to learn and revise my Tkinter skills haha.
-But I think CLI fits better, so I will mostly use CLI in dev tools.

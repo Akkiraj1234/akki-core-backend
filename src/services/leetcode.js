@@ -6,20 +6,20 @@ const USERNAME = CONFIG['leetcode']['username']
 
 
 async function LeetcodeProfileData(username) {
-  const quarry = `
-  query getUserProfile($username: String!) {
-  }
-  `
+    const quarry = `
+    query getUserProfile($username: String!) {
+    }
+    `
 }
 
-
-// "leetcode": {
-//           "easy": 300,
-//           "medium": 200,
-//           "hard": 200,
-//           "totalSolved": 1400,
-//           "totalAvailable": 2300
-//         },
+const leetcode = {
+    "easy": 300,
+    "medium": 200,
+    "hard": 200,
+    "total eassy": 1700,
+    "total medium": 1500,
+    "total hard": 700
+}
 
 
 // {

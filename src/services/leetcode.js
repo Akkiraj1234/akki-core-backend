@@ -7,7 +7,12 @@ const USERNAME = CONFIG.leetcode.username
 
 async function request({ url, query, variables, headers = {} }) {
     try {
-        const finalHeaders = { "Content-Type": "application/json", ...headers };
+        const finalHeaders = { 
+            "Content-Type": "application/json", 
+            "Referer": "https://leetcode.com",
+            "User-Agent": "Mozilla/5.0",
+            ...headers 
+        };
         const res = await axios.post(
             url, 
             { query, variables }, 
@@ -17,7 +22,9 @@ async function request({ url, query, variables, headers = {} }) {
                 validateStatus: () => true
             }
         );
-        
+        // console.log(`Leetcode API response status: ${res.status}`);
+        // console.log(`Leetcode API response data: ${JSON.stringify(res.data)}`);
+
         // HTTP errors
         if (res.status === 429) {
             return { error: { type: "RATE_LIMITED", retryable: true } };
@@ -49,7 +56,7 @@ async function LeetcodeProfileData(username) {
     query getUserProfile($username: String!) {
         matchedUser(username: $username){ 
             submitStats{
-                asSubmissionNum { difficulty count }
+                acSubmissionNum { difficulty count }
             }
         }
         allQuestionsCount {difficulty count}
@@ -66,11 +73,12 @@ async function LeetcodeProfileData(username) {
         return { error: { type: "USER_NOT_FOUND", retryable: false } };
     }
     
-    const userStats = res.data.matchedUser.submitStats.asSubmissionNum;
+    const userStats = res.data.matchedUser.submitStats.acSubmissionNum;
     const totalStats = res.data.allQuestionsCount;
 
-    const getCount = (arr, diff) => 
-        arr.find(x => x.difficulty === diff)?.count || 0;
+    const getCount = (arr, diff) => {
+        return arr.find(x => x.difficulty === diff)?.count || 0;
+    };
 
     return {
         username: username,
@@ -87,18 +95,22 @@ async function LeetcodeProfileData(username) {
     };
 }
 
-
-async function getleetcodeheatmap(username) {
+async function leetcodeheatmap(username, year) {
     const query = `
-    query getUserProfile($username: String!) {
-        matchedUser(username: $username){ 
-            userCalendar { date value }
+    query userProfileCalendar($username: String!, $year: Int){
+        matchedUser(username: $username) {
+            userCalendar(year: $year) {
+                activeYears,
+                streak,
+                totalActiveDays,
+                submissionCalendar
+            }
         }
     }`;
     const res = await request({
         url: LEETCODE_API_ENDPOINT, 
         query: query, 
-        variables: { username }
+        variables: { username , year: year ?? null}
     });
 
     // safe search
@@ -108,10 +120,22 @@ async function getleetcodeheatmap(username) {
     }
     
     const heatmapData = res.data.matchedUser.userCalendar;
-    return heatmapData.map(entry => [entry.date, entry.value]);
+    return heatmapData;
+    // return heatmapData.map(entry => [entry.date, entry.value]);
 }
 
 
+
+async function main(){
+    const data1 = await LeetcodeProfileData(CONFIG.leetcode.username);
+    const data2 = await leetcodeheatmap(CONFIG.leetcode.username);
+    console.log(data1?.error ? `No data found ${JSON.stringify(data1.error)}`: data1);
+    console.log(data2?.error ? `No data found ${JSON.stringify(data2.error)}`: data2);
+}
+
+if (require.main === module){
+    main();
+}
 
 
 

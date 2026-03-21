@@ -45,6 +45,8 @@ async function refreshAccessToken() {
 	}
 }
 
+function create_header(con)
+SpotifyClient.interceptors.request.use()
 SpotifyClient.interceptors.request.use((config) => {
   if (ACCESS_TOKEN) {
     config.headers.Authorization = `Bearer ${ACCESS_TOKEN}`;

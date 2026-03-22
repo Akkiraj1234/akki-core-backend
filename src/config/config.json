@@ -7,8 +7,11 @@
     "endpoint": "https://leetcode.com/graphql"
   },
   "roadmap": {
-    "profile": "akhand",
-    "endpoint": "https://roadmap.sh"
+    "username": "akhand",
+    "endpoint": "https://roadmap.sh/api",
+    "routes": {
+      "profile": "/v1-get-public-profile"
+    }
   }
 }
 

@@ -11,6 +11,88 @@ let refreshSubscribers = [];
 
 
 
+async function request({ url, query, variables, headers = {} }) {
+    try {
+	const finalHeaders = {
+	    "Content-Type": "application/json",
+	    "Referer": "https://leetcode.com",
+	    "User-Agent": "Mozilla/5.0",
+	    ...headers
+	};
+	const res = await axios.post(
+	    url,
+	    { query, variables },
+	    {
+		headers: finalHeaders,
+		timeout: 5000,
+		validateStatus: () => true
+	    }
+	);
+	// console.log(`Leetcode API response status: ${res.status}`);
+	// console.log(`Leetcode API response data: ${JSON.stringify(res.data)}`);
+
+	// HTTP errors
+	if (res.status === 429) {
+	    return { error: { type: "RATE_LIMITED", retryable: true } };
+	}
+
+	if (res.status >= 500) {
+	    return { error: { type: "SERVER_ERROR", retryable: true } };
+	}
+
+	if (res.status >= 400) {
+	    return { error: { type: "BAD_REQUEST", retryable: false } };
+	}
+
+	// GraphQL errors
+	if (res.data.errors) {
+	    return { error: { type: "BAD_REQUEST", retryable: false } };
+	}
+	return { data: res.data.data };
+
+    } catch (err) {
+	return { error: { type: "NETWORK_ERROR", retryable: true } };
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const SpotifyClient = axios.create({
 	baseURL: 'https://api.spotify.com/v1',
 })

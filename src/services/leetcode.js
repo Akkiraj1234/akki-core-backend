@@ -9,20 +9,6 @@ const USERNAME = CONFIG.leetcode.username
 // 3. fix formatLeetcodeHeatmap to use dict {date, data} to store heatmap and + array to itrate easily over each date
 // 4. requests should handle all error documanted bellow
 
-// | Type               | When it occurs                                    | Default action     |
-// | ------------------ | ------------------------------------------------- | ------------------ |
-// | `NETWORK_ERROR`    | timeout, DNS, connection reset                    | retry soon         |
-// | `SERVER_ERROR`     | HTTP 5xx (500, 502, 503)                          | retry with backoff |
-// | `RATE_LIMITED`     | HTTP 429                                          | retry after delay  |
-// | `TEMP_UNAVAILABLE` | upstream temporarily unavailable (non-HTTP cases) | retry later        |
-// | Type             | When it occurs              | Default action               |
-// | ---------------- | --------------------------- | ---------------------------- |
-// | `USER_NOT_FOUND` | 404 / no matched user       | stop (no retry)              |
-// | `BAD_REQUEST`    | 400 / invalid query payload | report + stop                |
-// | `UNAUTHORIZED`   | 401                         | report (may need config fix) |
-// | `FORBIDDEN`      | 403                         | report (access issue)        |
-// | `PARSE_ERROR`    | unexpected response shape   | report                       |
-// | `UNKNOWN_ERROR`  | anything unclassified       | report                       |
 
 
 async function request({ url, query, variables, headers = {} }) {

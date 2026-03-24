@@ -34,27 +34,13 @@
 
 // the return type should be fixed
 // for example return type should loook something like this:
-// error = { type: ERROR_TYPES, message: message, source: {code: code, message: message, raw: {...}, } 
-// should return by post and get : { data, error, status };
+// error = buildError()
+// should return by post and get : { data, error, code };
 // which supppose to be followed by all function like httserrorHandler, graphqlErrorHandler, POST, GET etc.
 
+const axios = require("axios");
+const { sanitize, ERROR_TYPES } = require("../utils.js");
 
-const ERROR_TYPES = Object.freeze({
-    NETWORK_FAILURE:       "NETWORK_FAILURE",
-    SERVER_FAILURE:        "SERVER_FAILURE",
-    RATE_LIMITED:          "RATE_LIMITED",
-    TEMPORARY_UNAVAILABLE: "TEMPORARY_UNAVAILABLE",
-    TIMEOUT:               "TIMEOUT",
-
-    NOT_FOUND:             "NOT_FOUND",
-    UNAUTHORIZED:          "UNAUTHORIZED",
-    FORBIDDEN:             "FORBIDDEN",
-    BAD_REQUEST:           "BAD_REQUEST",
-    VALIDATION_FAILED:     "VALIDATION_FAILED",
-
-    PARSE_FAILURE:         "PARSE_FAILURE",
-    UNKNOWN_FAILURE:       "UNKNOWN_FAILURE"
-});
 
 const ERROR_MAP = Object.freeze({
     400: { type: ERROR_TYPES.BAD_REQUEST, message: "The request is invalid or malformed." },
@@ -65,126 +51,150 @@ const ERROR_MAP = Object.freeze({
     422: { type: ERROR_TYPES.VALIDATION_FAILED, message: "The request data failed validation." },
     429: { type: ERROR_TYPES.RATE_LIMITED, message: "Too many requests. Please try again later." },
     500: { type: ERROR_TYPES.SERVER_FAILURE, message: "An unexpected server error occurred." },
-    502: { type: ERROR_TYPES.SERVER_FAILURE, message: "Received an invalid response from the upstream server." },
-    503: { type: ERROR_TYPES.TEMPORARY_UNAVAILABLE, message: "The service is temporarily unavailable." }, 
-    504: { type: ERROR_TYPES.TIMEOUT, message: "The upstream server did not respond in time." }
+    502: { type: ERROR_TYPES.SERVER_FAILURE, message: "Invalid upstream response." },
+    503: { type: ERROR_TYPES.TEMPORARY_UNAVAILABLE, message: "Service temporarily unavailable." },
+    504: { type: ERROR_TYPES.TIMEOUT, message: "Upstream timeout." }
 });
 
 const DEFAULT_HEADERS = Object.freeze({
-  "Content-Type": "application/json",
-  "Accept": "application/json",
-  "User-Agent": "orbit-client/1.0",
-  "X-Client-Name": "orbit",
-  "X-Client-Version": "1.0.0"
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "User-Agent": "orbit-client/1.0",
+    "X-Client-Name": "orbit",
+    "X-Client-Version": "1.0.0"
 });
 
+function createResponse({ data = null, error = null, code = null }) {
+    return { data, error, code };
+}
 
-function httpErrorHandler({ status, data }) {
-    if (status == null) {
-        return {
-            type: ERROR_TYPES.NETWORK_FAILURE,
-            message: "Network failure or no response",
-            source: { status: null, message: String(data || "No response"), raw: data }
-        }
-    }
+function buildError({ base, res = null, req = null, errorMessage = null }) {
 
-    if (status < 400) return null; // no error for successful responses
-    let base = ERROR_MAP[status];
+    req = (req && typeof req === "object" && !Array.isArray(req)) ? req : {};
+    res = (res && typeof res === "object" && !Array.isArray(res)) ? res : {};
 
-    if (!base) {
-        if (status >= 500) {
-            base = { type: ERROR_TYPES.SERVER_FAILURE, message: `ERROR_CODE ${status}: Unexpected server error occurred.` };
-        } else if (status >= 400) {
-            base = { type: ERROR_TYPES.BAD_REQUEST, message: `ERROR_CODE ${status}: The request could not be processed.` };
-        } else {
-            base = { type: ERROR_TYPES.UNKNOWN_FAILURE, message: `ERROR_CODE ${status}: An unexpected error occurred.` };
-        }
-    }
-
-    const extractedMessage  = data && typeof data === "object"
-        ? data?.message || data?.error || data?.error_description || null
-        : data
-        ? String(data)
-        : "No message provided";
-
+    const extractedMessage = 
+        errorMessage ||
+        res?.data?.message ||
+        res?.data?.error ||
+        null;
+    
     return {
-        ...base, source: {
-            code: status, message: extractedMessage, raw: data
+        ...base,
+
+        source: {
+            code: res?.status ?? null,
+            message: extractedMessage
+        },
+        context: {
+            request: {
+                method: req?.method ?? null,
+                url: req?.url ?? null,
+                headers: sanitize(req?.headers),
+                body: sanitize(req.data ?? req.body ?? null)
+            },
+            response: {
+                status: res?.status ?? null,
+                headers: sanitize(res?.headers),
+                body: sanitize(res?.data)
+            }   
+        },
+        meta: {
+            timestamp: new Date().toISOString()
         }
     };
 }
 
-function graphqlErrorHandler({ data }) {
+function httpErrorHandler({ code, res, req }) {
+
+    if (code == null) {
+        return buildError({
+            base: {
+                type: ERROR_TYPES.NETWORK_FAILURE,
+                message: "Network failure or no response",
+            },
+            res,
+            req
+        });
+    }
+
+    if (code < 400) return null; // no error for successful responses
+    let base = ERROR_MAP[code];
+
+    if (!base) {
+        if (code >= 500) {
+            base = { type: ERROR_TYPES.SERVER_FAILURE, message: `Unexpected server error occurred.` };
+        } else if (code >= 400) {
+            base = { type: ERROR_TYPES.BAD_REQUEST, message: `The request could not be processed.` };
+        } else {
+            base = { type: ERROR_TYPES.UNKNOWN_FAILURE, message: `An unexpected error occurred.` };
+        }
+    }
+
+    return buildError({ base, res, req });
+}
+
+function graphqlErrorHandler({ res, req }) {
+    const data = res?.data;
+
     if (!data || !Array.isArray(data.errors) || data.errors.length === 0) {
         return null;
     }
 
     const err = data.errors[0];
     const code = err?.extensions?.code;
-    let type = ERROR_TYPES.BAD_REQUEST;
 
-    switch (code) {
-        case "UNAUTHENTICATED":
-            type = ERROR_TYPES.UNAUTHORIZED;
-            break;
-        case "FORBIDDEN":
-            type = ERROR_TYPES.FORBIDDEN;
-            break;
-        case "NOT_FOUND":
-            type = ERROR_TYPES.NOT_FOUND;
-            break;
-        case "INTERNAL_SERVER_ERROR":
-            type = ERROR_TYPES.SERVER_FAILURE;
-            break;
-        case "RATE_LIMITED":
-            type = ERROR_TYPES.RATE_LIMITED;
-            break;
-        default:
-            type = ERROR_TYPES.BAD_REQUEST;
-    }
-
-    return {
-        type,
-        message: err?.message || "GraphQL error",
-        source: {
-            code: code,
-            message: err?.message,
-            raw: data
-        }
+    const typeMap = {
+        UNAUTHENTICATED: ERROR_TYPES.UNAUTHORIZED,
+        FORBIDDEN: ERROR_TYPES.FORBIDDEN,
+        NOT_FOUND: ERROR_TYPES.NOT_FOUND,
+        INTERNAL_SERVER_ERROR: ERROR_TYPES.SERVER_FAILURE,
+        RATE_LIMITED: ERROR_TYPES.RATE_LIMITED
     };
+
+    const base = {
+        type: typeMap[code] || ERROR_TYPES.BAD_REQUEST,
+        message: err?.message || "GraphQL error"
+    };
+
+    return buildError({
+        base,
+        res,
+        req,
+        errorMessage: err?.message
+    })
 }
 
-function createResponse({ data = null, error = null, status = null }) {
-    return { data, error, status };
-}
-
-function CheckErrorAndResponse(response) {
+function checkErrorAndResponse({ code, response, request }) {
     const httpError = httpErrorHandler({
-        status: response.status,
-        data: response.data
+        code: code,
+        res: response,
+        req: request,
     });
 
     if (httpError) {
         return createResponse({
             error: httpError,
-            status: response.status,
-        })
+            code: httpError.type,
+        });
     }
 
     const graphqlError = graphqlErrorHandler({
-        data: response.data
+        res: response,
+        req: request,
     });
 
     if (graphqlError) {
         return createResponse({
             error: graphqlError,
-            status: response.status,
-        })
+            code: graphqlError.type,
+        });
     }
 
     return createResponse({
-        data: response.data?.data ?? null,
-        status: response.status
+        data: response?.data ?? null,
+        status: response.status,
+        code: null,
     });
 }
 
@@ -199,15 +209,24 @@ async function POST({ url, query, variables, headers = {} }) {
                 validateStatus: () => true
             }
         );
-        return CheckErrorAndResponse(res);
-
+        return checkErrorAndResponse({ 
+            code: res.status,
+            response: res, 
+            request: res?.config 
+        });
+    
     } catch (err) {
         return createResponse({
-            error: {
-                type: ERROR_TYPES.NETWORK_FAILURE,
-                message: err.message || "Network error occurred",
-                source: {code: null, message: null, raw: err}
-            }
+            error: buildError({
+                base: {
+                    type: ERROR_TYPES.NETWORK_FAILURE,
+                    message: err.message || "Network failure or no response"
+                },
+                req: err.config,
+                res: err.response,
+                errorMessage: err.message
+            }),
+            code: ERROR_TYPES.NETWORK_FAILURE
         });
     }
 }
@@ -216,18 +235,28 @@ async function GET({ url, params = null }) {
     try {
         const res = await axios.get(url, {
             params,
+            headers: { ...DEFAULT_HEADERS, ...headers },
             timeout: 5000,
             validateStatus: () => true
         });
-        return CheckErrorAndResponse(res);
-
+        return checkErrorAndResponse({ 
+            code: res.status,
+            response: res, 
+            request: res.config 
+        });
+    
     } catch (err) {
         return createResponse({
-            error: {
-                type: ERROR_TYPES.NETWORK_FAILURE,
-                message: err.message || "Network error occurred",
-                source: {code: null, message: null, raw: err}
-            },
+            error: buildError({
+                base: {
+                    type: ERROR_TYPES.NETWORK_FAILURE,
+                    message: err.message || "Network failure or no response"
+                },
+                req: err.config,
+                res: err.response,
+                message: err.message
+            }),
+            code: ERROR_TYPES.NETWORK_FAILURE
         });
     }
 }

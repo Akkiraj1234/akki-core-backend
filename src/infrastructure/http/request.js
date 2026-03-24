@@ -38,8 +38,8 @@
 // should return by post and get : { data, error, code };
 // which supppose to be followed by all function like httserrorHandler, graphqlErrorHandler, POST, GET etc.
 
-const axios = require("axios");
 const { sanitize, ERROR_TYPES } = require("../utils.js");
+const axios = require("axios");
 
 
 const ERROR_MAP = Object.freeze({
@@ -267,7 +267,6 @@ async function GET({ url, params = null, headers = {} }) {
 }
 
 module.exports = {
-    ERROR_TYPES,
     POST,
     GET
 };

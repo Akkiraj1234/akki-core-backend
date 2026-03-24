@@ -1,15 +1,16 @@
-const axios = require("axios");
+const { GET, POST } = require("../infrastructure")
 const { CONFIG } = require("../config");
 const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.profile}`;
 const USERNAME = CONFIG.roadmap.username;
 
 
 async function RoadmapProfileData({username}) {
-    const res = await axios.get(
-        `${PROFILEENDPOINT}/${username}`
-    )
+    const res = await GET({
+        url: `${PROFILEENDPOINT}/${username}`
+    });
 
     data = res.data
+
     return {
         name: data.name,
         avatar: data.avatar,
@@ -20,7 +21,6 @@ async function RoadmapProfileData({username}) {
         totalActivityCount: data.totalActivityCount,
         roadmap: data.roadmaps,
     }
-    // return res.data;
 }
 
 

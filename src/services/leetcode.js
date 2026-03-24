@@ -1,4 +1,4 @@
-const axios = require("axios");
+const { GET, POST } = require("../infrastructure")
 const { CONFIG } = require("../config");
 const LEETCODE_API_ENDPOINT = CONFIG.leetcode.endpoint
 const USERNAME = CONFIG.leetcode.username
@@ -8,52 +8,6 @@ const USERNAME = CONFIG.leetcode.username
 // 2. fetchLeetcodeHeatmapLastNYears add a argument name active user years to return only years with activity, and add a argument name baseYear to specify the base year for last N years calculation (default to current year)
 // 3. fix formatLeetcodeHeatmap to use dict {date, data} to store heatmap and + array to itrate easily over each date
 // 4. requests should handle all error documanted bellow
-
-
-
-async function request({ url, query, variables, headers = {} }) {
-    try {
-        const finalHeaders = {
-            "Content-Type": "application/json",
-            "Referer": "https://leetcode.com",
-            "User-Agent": "Mozilla/5.0",
-            ...headers
-        };
-        const res = await axios.post(
-            url,
-            { query, variables },
-            {
-                headers: finalHeaders,
-                timeout: 5000,
-                validateStatus: () => true
-            }
-        );
-        // console.log(`Leetcode API response status: ${res.status}`);
-        // console.log(`Leetcode API response data: ${JSON.stringify(res.data)}`);
-
-        // HTTP errors
-        if (res.status === 429) {
-            return { error: { type: "RATE_LIMITED", retryable: true } };
-        }
-
-        if (res.status >= 500) {
-            return { error: { type: "SERVER_ERROR", retryable: true } };
-        }
-
-        if (res.status >= 400) {
-            return { error: { type: "BAD_REQUEST", retryable: false } };
-        }
-
-        // GraphQL errors
-        if (res.data.errors) {
-            return { error: { type: "BAD_REQUEST", retryable: false } };
-        }
-        return { data: res.data.data };
-
-    } catch (err) {
-        return { error: { type: "NETWORK_ERROR", retryable: true } };
-    }
-}
 
 
 async function LeetcodeProfileData({ username }) {
@@ -76,18 +30,15 @@ async function LeetcodeProfileData({ username }) {
         }
         allQuestionsCount {difficulty count}
     }`;
-    const res = await request({
+
+    const res = await POST({
         url: LEETCODE_API_ENDPOINT,
         query: query,
-        variables: { username }
+        variables: { username },
+        headers: {"Referer": "https://leetcode.com"}
     });
 
-    // safe search
-    if (res.error) return res;
-    if (!res.data?.matchedUser) {
-        return { error: { type: "USER_NOT_FOUND", retryable: false } };
-    }
-
+    if (res.error) return res.error;
     const userStats = res.data.matchedUser.submitStats.acSubmissionNum;
     const totalStats = res.data.allQuestionsCount;
 
@@ -185,17 +136,16 @@ async function fetchLeetcodeHeatmapLastNYears({ username, lastNYears = 10, baseY
     const years = Array.from( {length: lastNYears}, (_, idx) => baseYear - idx);
     const query = _createSubmissionCalendarQuery( years );
 
-    const res = await request({
+    const res = await POST({
         url: LEETCODE_API_ENDPOINT,
         query: query,
-        variables: { username, years}
+        variables: { username, years},
+        headers: {"Referer": "https://leetcode.com"}
     });
 
-    if (res?.error) return res;
-    if (!res?.data?.matchedUser) {
-        return { error: { type: "USER_NOT_FOUND", retryable: false } };
-    }
+    if (res?.error) return res.error;
     const data = res.data.matchedUser;
+
     const result = { 
         availableYears: years,
         calendar: {}
@@ -248,17 +198,15 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
         }
     }`;
 
-    const res = await request({
+    const res = await POST({
         url: LEETCODE_API_ENDPOINT,
         query: query,
-        variables: { username, year }
+        variables: { username, year },
+        headers: {"Referer": "https://leetcode.com"}
     });
 
     // safe search
-    if (res?.error) return res;
-    if (!res?.data?.matchedUser) {
-        return { error: { type: "USER_NOT_FOUND", retryable: false } };
-    }
+    if (res?.error) return res.error;
     const data = res.data.matchedUser.userCalendar ?? {};
 
     return { 

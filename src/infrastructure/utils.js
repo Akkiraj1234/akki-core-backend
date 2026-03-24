@@ -19,3 +19,8 @@ const ERROR_TYPES = Object.freeze({
     PARSE_FAILURE: "PARSE_FAILURE",
     UNKNOWN_FAILURE: "UNKNOWN_FAILURE"
 });
+
+module.exports = {
+    sanitize,
+    ERROR_TYPES
+};

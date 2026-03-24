@@ -73,11 +73,17 @@ function buildError({ base, res = null, req = null, errorMessage = null }) {
     req = (req && typeof req === "object" && !Array.isArray(req)) ? req : {};
     res = (res && typeof res === "object" && !Array.isArray(res)) ? res : {};
 
-    const extractedMessage = 
-        errorMessage ||
-        res?.data?.message ||
-        res?.data?.error ||
-        null;
+    // const extractedMessage = 
+    //     errorMessage ||
+    //     res?.data?.message ||
+    //     res?.data?.error ||
+    //     null;
+    const extractedMessage = errorMessage ??
+    (typeof res?.data === "object"
+        ? res.data?.message || res.data?.error
+        : typeof res?.data === "string"
+        ? res.data
+        : null);
     
     return {
         ...base,
@@ -193,8 +199,7 @@ function checkErrorAndResponse({ code, response, request }) {
 
     return createResponse({
         data: response?.data ?? null,
-        status: response.status,
-        code: null,
+        code: code ?? null,
     });
 }
 
@@ -231,7 +236,7 @@ async function POST({ url, query, variables, headers = {} }) {
     }
 }
 
-async function GET({ url, params = null }) {
+async function GET({ url, params = null, headers = {} }) {
     try {
         const res = await axios.get(url, {
             params,
@@ -254,7 +259,7 @@ async function GET({ url, params = null }) {
                 },
                 req: err.config,
                 res: err.response,
-                message: err.message
+                errorMessage: err.message
             }),
             code: ERROR_TYPES.NETWORK_FAILURE
         });

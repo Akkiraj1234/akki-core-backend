@@ -42,9 +42,9 @@ function httpsErrorHandler(status, data) {
 
     if (!base) {
         if (status >= 500) {
-            base = { type: "SERVER_ERROR", retryable: true, message: "UNKNOWN server error" };
+            base = { type: "SERVER_ERROR", retryable: true, message: `UNKNOWN server error` };
         } else if (status >= 400) {
-            base = { type: "BAD_REQUEST", retryable: false, message: "UNKNOWN Bad request" };
+            base = { type: "BAD_REQUEST", retryable: false, message: `UNKNOWN Bad request` };
         }else {
             base = { type: "UNKNOWN_ERROR", retryable: false, message: "An unknown error occurred" };
         }

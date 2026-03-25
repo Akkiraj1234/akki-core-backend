@@ -4,22 +4,26 @@ const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.prof
 const USERNAME = CONFIG.roadmap.username;
 
 
-async function RoadmapProfileData({username}) {
+async function RoadmapProfileData({ username }) {
     const res = await GET({
         url: `${PROFILEENDPOINT}/${username}`
     });
 
     data = res.data
-
-    return {
-        name: data.name,
-        avatar: data.avatar,
-        avilabletohire: data.onboardingStatus,
-        customRoadmaps: data.customRoadmaps,
-        onboarding_info: data.onboarding,
-        activity: data.activity,
-        totalActivityCount: data.totalActivityCount,
-        roadmap: data.roadmaps,
+    if (res.data) {
+        return {
+            name: data.name,
+            avatar: data.avatar,
+            avilabletohire: data.onboardingStatus,
+            customRoadmaps: data.customRoadmaps,
+            onboarding_info: data.onboarding,
+            activity: data.activity,
+            totalActivityCount: data.totalActivityCount,
+            roadmap: data.roadmaps,
+        }
+    }
+    else {
+        return res?.error ?? null
     }
 }
 
@@ -27,8 +31,10 @@ async function RoadmapProfileData({username}) {
 
 
 
+
 async function main() {
-    console.log(await RoadmapProfileData({username: USERNAME}))
+    result = await RoadmapProfileData({ username: USERNAME });
+    console.log(JSON.stringify(result, null, 2));
 }
 if (require.main === module) {
     main();

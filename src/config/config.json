@@ -10,7 +10,7 @@
     "username": "akhand",
     "endpoint": "https://roadmap.sh/api",
     "routes": {
-      "profile": "/v1-get-public-profile"
+      "profile": "v1-get-public-profile"
     }
   }
 }

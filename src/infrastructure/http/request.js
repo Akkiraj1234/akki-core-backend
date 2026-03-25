@@ -64,6 +64,17 @@ const DEFAULT_HEADERS = Object.freeze({
     "X-Client-Version": "1.0.0"
 });
 
+function normalizeHeaders(headers) {
+    if (!headers) return null;
+
+    const obj =
+        typeof headers.toJSON === "function"
+            ? headers.toJSON()
+            : headers;
+
+    return { ...obj }; // 👈 THIS removes null prototype
+}
+
 function createResponse({ data = null, error = null, code = null }) {
     return { data, error, code };
 }
@@ -96,12 +107,12 @@ function buildError({ base, res = null, req = null, errorMessage = null }) {
             request: {
                 method: req?.method ?? null,
                 url: req?.url ?? null,
-                headers: sanitize(req?.headers),
+                headers: sanitize(normalizeHeaders(req?.headers)),
                 body: sanitize(req.data ?? req.body ?? null)
             },
             response: {
                 status: res?.status ?? null,
-                headers: sanitize(res?.headers),
+                headers: sanitize(normalizeHeaders(res?.headers)),
                 body: sanitize(res?.data)
             }   
         },

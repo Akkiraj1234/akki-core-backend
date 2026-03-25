@@ -3,6 +3,9 @@ const { CONFIG } = require("../config");
 const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.profile}`;
 const USERNAME = CONFIG.roadmap.username;
 
+class Task({ cashReadOnly }) {
+    
+}
 
 async function RoadmapProfileData({ username }) {
     const res = await GET({

@@ -3,7 +3,11 @@ const { CONFIG } = require("../config");
 const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.profile}`;
 const USERNAME = CONFIG.roadmap.username;
 
-class Task({ cashReadOnly }) {
+class Task {
+    constructor({ cashManager }) {
+        this.cashManager = cashManager;
+    }
+    
     
 }
 

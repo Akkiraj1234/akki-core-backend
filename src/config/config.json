@@ -1,0 +1,17 @@
+{
+  "github": {
+    "username": "Akkiraj1234"
+  },
+  "leetcode": {
+    "username": "akhand_raj",
+    "endpoint": "https://leetcode.com/graphql"
+  },
+  "roadmap": {
+    "username": "akhand",
+    "endpoint": "https://roadmap.sh/api",
+    "routes": {
+      "profile": "v1-get-public-profile"
+    }
+  }
+}
+

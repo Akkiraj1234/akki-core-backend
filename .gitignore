@@ -1,0 +1,115 @@
+# ==============================
+
+# Node / JavaScript
+
+# ==============================
+
+# dependencies
+
+node_modules/
+
+# logs
+
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# build output
+
+dist/
+build/
+
+# coverage
+
+coverage/
+
+# cache
+
+.cache/
+.tmp/
+
+# ==============================
+
+# Environment variables
+
+# ==============================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# ==============================
+
+# Python
+
+# ==============================
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# virtual environments
+
+venv/
+.venv/
+env/
+ENV/
+
+# python packaging
+
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# pytest / coverage
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==============================
+
+# Runtime / temp files
+
+# ==============================
+
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# local database files
+
+*.sqlite
+*.sqlite3
+
+# ==============================
+
+# OS files
+
+# ==============================
+
+.DS_Store
+Thumbs.db
+
+# ==============================
+
+# Editor settings
+
+# ==============================
+
+.vscode/
+.idea/
+
+# ==============================
+
+# Misc
+
+# ==============================
+
+*.tgz

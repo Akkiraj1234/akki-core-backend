@@ -1,0 +1,29 @@
+{
+  "name": "akki-core-backend",
+  "version": "1.0.0",
+  "description": "Core backend infrastructure for my personal projects like akhand.dev. Provides API security, session and rate limiting, Redis storage with memory fallback, task scheduling, and external data collectors powering multiple applications.",
+  "main": "main.js",
+  "scripts": {
+    "tool": "node scripts/dev-runner.js",
+    "start": "node src/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akkiraj1234/akki-core-backend.git"
+  },
+  "keywords": [],
+  "author": "Akhand Raj",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akkiraj1234/akki-core-backend/issues"
+  },
+  "homepage": "https://github.com/akkiraj1234/akki-core-backend#readme",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "fastify": "^5.8.2",
+    "nanoid": "^5.1.6",
+    "neo-blessed": "^0.2.0"
+  }
+}

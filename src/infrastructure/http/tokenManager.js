@@ -1,12 +1,13 @@
 const { handleServiceError } = require("../../utils.js")
 const { GET, POST } = require("./request.js")
 
-class AuthHandler  {
-    constructor({ 
+
+class AuthHandler {
+    constructor({
         refreshToken,
         clientId,
         clientSecret,
-        TokenExchangeURL, 
+        TokenExchangeURL,
         getAuthRequestConfig,
         mapTokenResponse
     }) {
@@ -24,7 +25,7 @@ class AuthHandler  {
 
         this.getAuthRequestConfig = getAuthRequestConfig;
         this.mapTokenResponse = mapTokenResponse;
-        
+
         this.tokenExpiry = 0;
         this.accessToken = null;
         this.isRefreshing = false;
@@ -35,42 +36,52 @@ class AuthHandler  {
         if (this.isRefreshing) {
             return this.waitForRefresh();
         }
-        
-        this.isRefreshing = true;
-        const { headers, body } = this.getAuthRequestConfig(this);
 
-        const finalHeaders = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            ...headers
-        };
+        let refreshResponse;
+        try {
+            this.isRefreshing = true;
+            const { headers = {}, body } = this.getAuthRequestConfig(this);
 
-        const response = await POST({
-            url: this.TokenExchangeURL,
-            data: body,
-            headers: finalHeaders
-        });
+            const finalHeaders = {
+                "Content-Type": "application/x-www-form-urlencoded",
+                ...headers
+            };
 
-        const refreshResponse = handleServiceError({
-            response, 
-            format: (data) => {
-                const { accessToken, expiresIn, refreshToken } =
-                    this.mapTokenResponse(data);
+            const response = await POST({
+                url: this.TokenExchangeURL,
+                data: body,
+                headers: finalHeaders
+            });
 
-                this.accessToken = accessToken ?? null;
-                this.tokenExpiry = expiresIn 
-                    ? Date.now() + expiresIn * 1000 - 60000
-                    : 0;
-                this.refreshToken = refreshToken ?? this.refreshToken;
-            }
-        });
-        this.notifySubscribers(this.accessToken);
-        this.isRefreshing = false;
-        
-        return refreshResponse.error; // either null or error if happen
+            refreshResponse = handleServiceError({
+                response,
+                format: (data) => {
+                    const { accessToken, expiresIn, refreshToken } =
+                        this.mapTokenResponse(data);
+
+                    this.accessToken = accessToken ?? this.accessToken;
+                    this.tokenExpiry = expiresIn
+                        ? Date.now() + expiresIn * 1000 - 60000
+                        : 0;
+                    this.refreshToken = refreshToken ?? this.refreshToken;
+                }
+            });
+
+        } catch (err) {
+            refreshResponse = { error: err };
+
+        } finally {
+            this.notifySubscribers({
+                accessToken: this.accessToken,
+                error: refreshResponse?.error ?? null
+            });
+            this.isRefreshing = false;
+            return refreshResponse.error ?? null;
+        }
     }
 
-    notifySubscribers(token) {
-        this.refreshSubscribers.forEach(cb => cb(token));
+    notifySubscribers({ accessToken, error }) {
+        this.refreshSubscribers.forEach(cb => cb({ accessToken, error }));
         this.refreshSubscribers = [];
     }
 
@@ -81,18 +92,30 @@ class AuthHandler  {
     }
 
     async handlePost(callable) {
-        if (!this.access_token || Date.now() >= this.tokenExpiry) {
-            await this.refreshAccessToken();
-        }
-        try {
-            return await callable(this.access_token);
-        }
-        catch (err) {
-            if (err.response && err.response.status === 401) {
-                await this.refreshAccessToken();
-                return await callable(this.access_token);
+        if (!this.accessToken || Date.now() >= this.tokenExpiry) {
+            const error = await this.refreshAccessToken();
+
+            if (error) {
+                return { data: null, error }; // or your createResponse
             }
-            throw err;
         }
+        const res = await callable(this.accessToken);
+
+        // if (res.error && (res.code === 401 || res.code === 403)) {
+        if (res.error?.type === "UNAUTHORIZED" || res.error?.type === "FORBIDDEN") {
+            const error = await this.refreshAccessToken();
+
+            if (error) {
+                return { data: null, error }; // or your createResponse
+            }
+            return await callable(this.accessToken);
+        }
+
+        return res;
     }
+}
+
+
+module.exports = {
+    AuthHandler
 }

@@ -1,11 +1,11 @@
 const { GET, POST } = require("./http/request.js");
-const { authHandler } = require("./http/tokenManager.js");
+const { AuthHandler } = require("./http/tokenManager.js");
 const { sanitize, ERROR_TYPES } = require("../utils.js");
 
 module.exports = {
     GET,
     POST,
     sanitize,
-    authHandler,
+    AuthHandler,
     ERROR_TYPES
 };

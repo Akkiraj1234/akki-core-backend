@@ -1,3 +1,4 @@
+require("dotenv").config({ path: "secret.env" });
 const CONFIG = require("./config.json");
 
 const SECRET = {

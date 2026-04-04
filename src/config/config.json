@@ -1,4 +1,15 @@
 {
+  "spotify": {
+    "redirect_uri": "http://127.0.0.1:8888/callback",
+    "show_dialog": false,
+    "scopes": [
+      "user-read-playback-state",
+      "user-read-currently-playing",
+      "playlist-read-private",
+      "user-top-read",
+      "user-read-recently-played"
+    ]
+  },
   "github": {
     "username": "Akkiraj1234"
   },

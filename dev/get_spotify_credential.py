@@ -28,19 +28,40 @@ from pathlib import Path
 
 
 # Configs files ====================================================
-dotenv.load_dotenv("secret.env")
+ROOT_DIR = Path(__file__).resolve().parent.parent
+SECRET_ENV_PATH = ROOT_DIR / "secret.env"
+CONFIG_JSON_PATH = ROOT_DIR / "src/config/config.json"
+
+dotenv.load_dotenv(SECRET_ENV_PATH)
+
 WIDTH, HEIGHT = 300, 400
 Title = "Spotify Credential Retriever"
-SPOTIFY_PNG = Path(__file__).parent.parent / "resource/spotify.png"
-DELETE_PNG = Path(__file__).parent.parent / "resource/delete.png"
+SPOTIFY_PNG = ROOT_DIR / "resource/spotify.png"
+DELETE_PNG = ROOT_DIR / "resource/delete.png"
 
-SPOTIFY_SCOPES = [
-    "user-read-playback-state", 
+DEFAULT_SPOTIFY_SCOPES = [
+    "user-read-playback-state",
     "user-read-currently-playing",
     "playlist-read-private",
     "user-top-read",
     "user-read-recently-played"
 ]
+
+
+def load_spotify_config() -> Dict[str, Any]:
+    if not CONFIG_JSON_PATH.exists():
+        return {}
+    try:
+        config_data = json.loads(CONFIG_JSON_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    spotify_config = config_data.get("spotify", {})
+    return spotify_config if isinstance(spotify_config, dict) else {}
+
+
+SPOTIFY_CONFIG = load_spotify_config()
+configured_scopes = SPOTIFY_CONFIG.get("scopes", DEFAULT_SPOTIFY_SCOPES)
+SPOTIFY_SCOPES = configured_scopes if isinstance(configured_scopes, list) else list(DEFAULT_SPOTIFY_SCOPES)
     
 # ==================================================================
 
@@ -129,10 +150,20 @@ class SpotifyAuth:
     def __init__(self) -> None:
         self.client_id: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")
-        self.redirect_uri: Optional[str] = os.getenv("SPOTIFY_REDIRECT_URI")
+        config_redirect_uri = SPOTIFY_CONFIG.get("redirect_uri")
+        env_redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI")
+        self.redirect_uri: Optional[str] = (
+            config_redirect_uri
+            if isinstance(config_redirect_uri, str) and config_redirect_uri.strip()
+            else env_redirect_uri
+        )
+        self.show_dialog: bool = bool(SPOTIFY_CONFIG.get("show_dialog", False))
 
         if not all([self.client_id, self.client_secret, self.redirect_uri]):
-            raise ValueError("Missing Spotify credentials in environment variables")
+            raise ValueError(
+                "Missing Spotify setup. Check SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET in secret.env "
+                "and spotify.redirect_uri in src/config/config.json."
+            )
         
         self.credentials: Optional[Dict[str, Any]] = None
         print("Spotify credentials loaded")
@@ -143,7 +174,7 @@ class SpotifyAuth:
             "response_type": "code",
             "redirect_uri": self.redirect_uri,
             "state": secrets.token_hex(16),
-            "show_dialog": "false",
+            "show_dialog": str(self.show_dialog).lower(),
             "scope": " ".join(scopes) if scopes else ""
         }   
         return f"{self.LOGIN_URL}?{urllib.parse.urlencode(params)}"
@@ -218,7 +249,7 @@ class SpotifyAuth:
 
 
 def save_credentials_to_env(
-    creds: Dict[str, Any], env_path: Path = Path("secret.env")
+    creds: Dict[str, Any], env_path: Path = SECRET_ENV_PATH
 ) -> Path:
     current_lines: List[str] = []
     env_map: Dict[str, str] = {}

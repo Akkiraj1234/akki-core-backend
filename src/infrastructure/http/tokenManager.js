@@ -1,4 +1,4 @@
-const { handleServiceError } = require("../../utils.js")
+const { createResponse, handleServiceError } = require("../../utils.js")
 const { GET, POST } = require("./request.js")
 
 
@@ -34,7 +34,8 @@ class AuthHandler {
 
     async refreshAccessToken() {
         if (this.isRefreshing) {
-            return this.waitForRefresh();
+            const error = await this.waitForRefresh();
+            return error ?? null;
         }
 
         let refreshResponse;
@@ -68,20 +69,21 @@ class AuthHandler {
             });
 
         } catch (err) {
-            refreshResponse = { error: err };
+            refreshResponse = {
+                data: null,
+                error: err,
+                code: null
+            };
 
         } finally {
-            this.notifySubscribers({
-                accessToken: this.accessToken,
-                error: refreshResponse?.error ?? null
-            });
             this.isRefreshing = false;
+            this.notifySubscribers( refreshResponse?.error ?? null);
             return refreshResponse.error ?? null;
         }
     }
 
-    notifySubscribers({ accessToken, error }) {
-        this.refreshSubscribers.forEach(cb => cb({ accessToken, error }));
+    notifySubscribers( error ) {
+        this.refreshSubscribers.forEach(cb => cb( error ));
         this.refreshSubscribers = [];
     }
 
@@ -96,7 +98,11 @@ class AuthHandler {
             const error = await this.refreshAccessToken();
 
             if (error) {
-                return { data: null, error }; // or your createResponse
+                return createResponse({
+                    data: null,
+                    error,
+                    code: error?.source?.code ?? null
+                });
             }
         }
         const res = await callable(this.accessToken);
@@ -106,7 +112,11 @@ class AuthHandler {
             const error = await this.refreshAccessToken();
 
             if (error) {
-                return { data: null, error }; // or your createResponse
+                return createResponse({
+                    data: null,
+                    error,
+                    code: error?.source?.code ?? null
+                });
             }
             return await callable(this.accessToken);
         }
@@ -114,7 +124,6 @@ class AuthHandler {
         return res;
     }
 }
-
 
 module.exports = {
     AuthHandler

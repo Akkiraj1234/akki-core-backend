@@ -1,3 +1,7 @@
+sanitizeRulesList = {
+    
+}
+
 function sanitize(header) {
     // write a good sanitizeer
     return header

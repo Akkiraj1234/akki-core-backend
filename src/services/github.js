@@ -48,34 +48,51 @@ async function getGithubEvents() {
 
     return handleServiceError({
         response,
-        format: (data) => {
-            return data;
-            // events: (data ?? []).map(normalizeEvent).filter(Boolean)
-        }
+        format: (data) => ({
+            events: (data ?? []).map(normalizeGithubEvent).filter(Boolean)
+        })
     });
 }
+
+function normalizeGithubEvent(event) {
+    if (!event || typeof event !== "object") return null;
+
+    return {
+        id: event.id ?? null,
+        type: event.type ?? null,
+        createdAt: event.created_at ?? null,
+        repo: {
+            name: event.repo?.name ?? null,
+            url: event.repo?.url ?? null
+        },
+        actor: {
+            username: event.actor?.login ?? null,
+            avatar: event.actor?.avatar_url ?? null
+        }
+    };
+}
+
 function formatGithubHeatmap(weeks) {
     /**
      * Convert GitHub weeks -> flat [{ date: dayIndex, count }]
      * (same as LeetCode format)
      */
 
-    const result = [];
+    const dayCountMap = new Map();
 
     for (const week of weeks) {
         for (const day of week.contributionDays) {
-            const timestamp = Math.floor(
-                new Date(day.date).getTime() / 1000
-            ); // ms → sec
+            const dayIndex = Math.floor(new Date(day.date).getTime() / 86400000);
+            const count = Number(day.contributionCount) || 0;
 
-            result.push({
-                date: Math.floor(timestamp / 86400), // match LeetCode
-                count: Number(day.contributionCount) || 0
-            });
+            if (!Number.isFinite(dayIndex)) continue;
+            dayCountMap.set(dayIndex, (dayCountMap.get(dayIndex) ?? 0) + count);
         }
     }
 
-    return result.sort((a, b) => a.date - b.date);
+    return Array.from(dayCountMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date - b.date);
 }
 const GITHUB_GRAPHQL_QUERY = `
 query ($username: String!) {
@@ -147,19 +164,19 @@ async function fetchGithubHeatmap({ username }) {
 }
 
 const worker_map = {
-    "GithubProfileData": {
+    "getGithubProfile": {
         callable: getGithubProfile,
         key: "github.profile",
         priority: "high",
         next_run: 2 * 3600 * 1000
     },
-    "GithubEvents": {
+    "getGithubEvents": {
         callable: getGithubEvents,
         key: "github.events",
         priority: "medium",
         next_run: 30 * 60 * 1000
     },
-    "GithubHeatmap": {
+    "fetchGithubHeatmap": {
         callable: fetchGithubHeatmap,
         key: "github.heatmap",
         priority: "high",

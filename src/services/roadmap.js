@@ -4,7 +4,7 @@ roadmap sh userend point: https://github.com/kamranahmedse/developer-roadmap/blo
 */
 const { GET } = require("../infrastructure")
 const { CONFIG } = require("../config");
-const { createResponse } = require("../utils.js")
+const { handleServiceError } = require("../utils.js")
 
 // Constants
 const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.profile}`;
@@ -14,17 +14,19 @@ const USERNAME = CONFIG.roadmap.username;
 function formatRoadmapHeatmap(data) {
     if (!data || typeof data !== "object") return [];
 
-    return Object.entries(data)
-        .map(([date, count]) => {
-            const timestamp = Date.parse(date);
-            if (Number.isNaN(timestamp)) return null;
+    const dayCountMap = new Map();
 
-            return {
-                date: Math.floor(timestamp / 86400000), // LeetCode-style day index
-                count: Number(count) || 0
-            };
-        })
-        .filter(Boolean)
+    for (const [date, count] of Object.entries(data)) {
+            const timestamp = Date.parse(date);
+            if (Number.isNaN(timestamp)) continue;
+            
+            const dayIndex = Math.floor(timestamp / 86400000);
+            const normalizedCount = Number(count) || 0;
+            dayCountMap.set(dayIndex, (dayCountMap.get(dayIndex) ?? 0) + normalizedCount);
+    }
+
+    return Array.from(dayCountMap.entries())
+        .map(([date, count]) => ({ date, count }))
         .sort((a, b) => a.date - b.date);
 }
 function formatRoadmapdata(data) {
@@ -48,22 +50,14 @@ function formatRoadmapdata(data) {
 }
 
 async function RoadmapProfileData({ username }) {
+    const selectedUsername = username ?? USERNAME;
     const response = await GET({
-        url: `${PROFILEENDPOINT}/${username}`
+        url: `${PROFILEENDPOINT}/${selectedUsername}`
     });
 
-    if (response.error) {
-        return createResponse({
-            data: {},
-            code: response.code,
-            error: response.error
-        });
-    }
-
-    return createResponse({
-        data: formatRoadmapdata(response.data),
-        code: response.code,
-        error: response.error
+    return handleServiceError({
+        response,
+        format: (data) => formatRoadmapdata(data)
     });
 }
 

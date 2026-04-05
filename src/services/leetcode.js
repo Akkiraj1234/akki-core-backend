@@ -1,4 +1,4 @@
-const { GET, POST } = require("../infrastructure")
+const { POST } = require("../infrastructure")
 const { CONFIG } = require("../config");
 const { handleServiceError } = require("../utils.js");
 
@@ -16,12 +16,7 @@ function _createSubmissionCalendarQuery(yearList = []) {
      * Build GraphQL query for LeetCode submission calendar by years.
      * @param {number[]} yearList - List of years (must not be empty)
      * @returns {string} GraphQL query string
-     * @throws {Error} If yearList is empty
      */
-
-    if (!yearList.length){
-        throw new Error("yearList cannot be empty")
-    }
     
     const yearQueries = yearList.map(year => `
         year${year}: userCalendar(year: ${year}) {
@@ -50,16 +45,19 @@ function formatLeetcodeHeatmap(data) {
         ? JSON.parse(data) 
         : data;
 
-    const result = [];
+    const dayCountMap = new Map();
 
     for (const timestamp in parsed) {
-        result.push({
-            date: Math.floor(Number(timestamp) / 86400), //day level
-            count: parsed[timestamp]
-        });
+        const dayIndex = Math.floor(Number(timestamp) / 86400);
+        const count = Number(parsed[timestamp]) || 0;
+
+        if (!Number.isFinite(dayIndex)) continue;
+        dayCountMap.set(dayIndex, (dayCountMap.get(dayIndex) ?? 0) + count);
     }
 
-    return result;
+    return Array.from(dayCountMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date - b.date);
 }
 
 async function LeetcodeProfileData({ username }) {
@@ -136,13 +134,15 @@ async function fetchLeetcodeHeatmapLastNYears({ username, lastNYears = 10, baseY
      * }>}
      */
     
+    const selectedUsername = username ?? USERNAME;
     if (!baseYear) { baseYear = new Date().getFullYear()}
-    const years = Array.from( {length: lastNYears}, (_, idx) => baseYear - idx);
+    const effectiveYears = Math.max(1, Number(lastNYears) || 1);
+    const years = Array.from({ length: effectiveYears }, (_, idx) => baseYear - idx);
     const query = _createSubmissionCalendarQuery( years );
     
     const response = await POST({
         url: LEETCODE_API_ENDPOINT,
-        data: { query, variables: { username, years } },
+        data: { query, variables: { username: selectedUsername, years } },
         headers: {"Referer": "https://leetcode.com"}
     });
 
@@ -189,6 +189,7 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
      * }>}
      */
 
+    const selectedUsername = username ?? USERNAME;
     if (year === null) {year = new Date().getFullYear()}
 
     const query = `
@@ -205,7 +206,7 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
 
     const response = await POST({
         url: LEETCODE_API_ENDPOINT,
-        data: { query, variables: { username, year } },
+        data: { query, variables: { username: selectedUsername, year } },
         headers: {"Referer": "https://leetcode.com"}
     });
 

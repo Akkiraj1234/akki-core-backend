@@ -75,7 +75,7 @@ async function LeetcodeProfileData({ username }) {
     query getUserProfile($username: String!) {
         matchedUser(username: $username){ 
             submitStats{
-                acSubmissionNum { difficulty count }
+                acSubmissionNum { dfifficulty count }
             }
         }
         allQuestionsCount {difficulty count}

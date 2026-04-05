@@ -245,9 +245,9 @@ async function main() {
 
 // id : {callable, prioriy, nextrun:ms}
 const worker_map = {
-    "LeetcodeProfileData": {callable: LeetcodeProfileData, prioriy: "high", next_run: 3600},
-    "fetchLeetcodeHeatmap": {callable: fetchLeetcodeHeatmap, prioriy: "high", next_run: 1800},
-    "fetchLeetcodeHeatmapLastNYears": {callable: fetchLeetcodeHeatmapLastNYears, prioriy: "low", next_run: 1800},
+    "LeetcodeProfileData": {callable: LeetcodeProfileData, priority: "high", next_run: 2 * 3600 * 1000},
+    "fetchLeetcodeHeatmap": {callable: fetchLeetcodeHeatmap, priority: "high", next_run: 1800 * 1000},
+    "fetchLeetcodeHeatmapLastNYears": {callable: fetchLeetcodeHeatmapLastNYears, priority: "low", next_run: 24 * 3600 * 1000},
 }
 
 module.exports = {

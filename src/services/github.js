@@ -56,21 +56,26 @@ async function getGithubEvents() {
 }
 function formatGithubHeatmap(weeks) {
     /**
-     * Convert GitHub weeks → flat [timestamp, count][]
+     * Convert GitHub weeks -> flat [{ date: dayIndex, count }]
+     * (same as LeetCode format)
      */
 
     const result = [];
 
     for (const week of weeks) {
         for (const day of week.contributionDays) {
-            result.push([
-                new Date(day.date).getTime(),
-                day.contributionCount
-            ]);
+            const timestamp = Math.floor(
+                new Date(day.date).getTime() / 1000
+            ); // ms → sec
+
+            result.push({
+                date: Math.floor(timestamp / 86400), // match LeetCode
+                count: Number(day.contributionCount) || 0
+            });
         }
     }
 
-    return result;
+    return result.sort((a, b) => a.date - b.date);
 }
 const GITHUB_GRAPHQL_QUERY = `
 query ($username: String!) {
@@ -98,18 +103,22 @@ async function fetchGithubHeatmap({ username }) {
      * @param {string} params.username
      *
      * @returns {Promise<{
-     *   totalContributions: number,
-     *   calendar: {
-     *     heatmap: [number, number][]
+     *   availableYears: number[],
+     *   calendar: Record<string, {
+     *     totalContributions: number,
+     *     heatmap: { date: number, count: number }[]
      *   }
+     *   totalContributions: number
      * }>}
      */
+    const selectedUsername = username ?? USERNAME;
+    const currentYear = new Date().getFullYear();
 
     const response = await POST({
         url: "https://api.github.com/graphql",
         data: {
             query: GITHUB_GRAPHQL_QUERY,
-            variables: { username }
+            variables: { username: selectedUsername }
         },
         headers: {
             Authorization: `Bearer ${SECRET.GITHUB_FG_ACCESS_TOKEN}`
@@ -120,16 +129,47 @@ async function fetchGithubHeatmap({ username }) {
         response,
         format: (data) => {
             const payload = data?.data?.user?.contributionsCollection?.contributionCalendar;
+            const totalContributions = payload?.totalContributions ?? 0;
+            const heatmap = formatGithubHeatmap(payload?.weeks ?? []);
 
             return {
-                totalContributions: payload?.totalContributions ?? 0,
+                availableYears: [currentYear],
                 calendar: {
-                    heatmap: formatGithubHeatmap(payload?.weeks ?? [])
-                }
+                    [currentYear]: {
+                        totalContributions,
+                        heatmap
+                    }
+                },
+                totalContributions
             };
         }
     });
 }
+
+const worker_map = {
+    "GithubProfileData": {
+        callable: getGithubProfile,
+        key: "github.profile",
+        priority: "high",
+        next_run: 2 * 3600 * 1000
+    },
+    "GithubEvents": {
+        callable: getGithubEvents,
+        key: "github.events",
+        priority: "medium",
+        next_run: 30 * 60 * 1000
+    },
+    "GithubHeatmap": {
+        callable: fetchGithubHeatmap,
+        key: "github.heatmap",
+        priority: "high",
+        next_run: 30 * 60 * 1000
+    }
+};
+
+module.exports = {
+    worker_map
+};
 
 
 async function main() {
@@ -142,7 +182,7 @@ async function main() {
     data.forEach((res) => {
         console.dir(
             res?.error?.error ? `No data found ${JSON.stringify(res.error)}` : res,
-            { depth: null}
+            { depth: null, showHidden: true, colors: true }
         )
     });
 }

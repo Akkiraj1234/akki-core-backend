@@ -101,7 +101,7 @@ async function LeetcodeProfileData({ username }) {
             };
 
             return {
-                username: USERNAME ?? "unknown",
+                username: username ?? USERNAME ?? "unknown",
                 solved: {
                     easy: getCount(userStats, "Easy"),
                     medium: getCount(userStats, "Medium"),
@@ -245,9 +245,24 @@ async function main() {
 
 // id : {callable, prioriy, nextrun:ms}
 const worker_map = {
-    "LeetcodeProfileData": {callable: LeetcodeProfileData, priority: "high", next_run: 2 * 3600 * 1000},
-    "fetchLeetcodeHeatmap": {callable: fetchLeetcodeHeatmap, priority: "high", next_run: 1800 * 1000},
-    "fetchLeetcodeHeatmapLastNYears": {callable: fetchLeetcodeHeatmapLastNYears, priority: "low", next_run: 24 * 3600 * 1000},
+    "LeetcodeProfileData": {
+        callable: LeetcodeProfileData,
+        key: "leetcode.profile",
+        priority: "high",
+        next_run: 2 * 3600 * 1000
+    },
+    "fetchLeetcodeHeatmap": {
+        callable: fetchLeetcodeHeatmap,
+        key: "leetcode.heatmap.current",
+        priority: "high",
+        next_run: 1800 * 1000
+    },
+    "fetchLeetcodeHeatmapLastNYears": {
+        callable: fetchLeetcodeHeatmapLastNYears,
+        key: "leetcode.heatmap.history",
+        priority: "low",
+        next_run: 24 * 3600 * 1000
+    },
 }
 
 module.exports = {

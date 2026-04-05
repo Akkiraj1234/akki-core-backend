@@ -2,7 +2,7 @@
 Roadmap source can be found here
 roadmap sh userend point: https://github.com/kamranahmedse/developer-roadmap/blob/master/src/api/api.ts
 */
-const { GET, POST } = require("../infrastructure")
+const { GET } = require("../infrastructure")
 const { CONFIG } = require("../config");
 const { createResponse } = require("../utils.js")
 
@@ -11,9 +11,26 @@ const PROFILEENDPOINT = `${CONFIG.roadmap.endpoint}/${CONFIG.roadmap.routes.prof
 const USERNAME = CONFIG.roadmap.username;
 
 
+function formatRoadmapHeatmap(data) {
+    if (!data || typeof data !== "object") return [];
+
+    return Object.entries(data)
+        .map(([date, count]) => {
+            const timestamp = Date.parse(date);
+            if (Number.isNaN(timestamp)) return null;
+
+            return {
+                date: Math.floor(timestamp / 86400000), // LeetCode-style day index
+                count: Number(count) || 0
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+}
 function formatRoadmapdata(data) {
-    // write a good formatter for roadmap data
     if (!data) return {};
+
+    const heatmap = formatRoadmapHeatmap(data.activity?.activityCount ?? {});
 
     return {
         name: data.name,
@@ -22,7 +39,8 @@ function formatRoadmapdata(data) {
         customRoadmaps: data.customRoadmaps,
         onboardingInfo: data.onboarding,
         activity: {
-            daily: data.activity?.activityCount ?? {},
+            heatmap,
+            daily: heatmap, // compatibility alias
             total: data.activity?.totalActivityCount ?? 0
         },
         roadmap: data.roadmaps,
@@ -70,5 +88,3 @@ async function main() {
 if (require.main === module) {
     main();
 }
-
-

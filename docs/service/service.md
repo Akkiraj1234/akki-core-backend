@@ -2,21 +2,35 @@
 
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [Service Philosophy](#2-service-philosophy)
-3. [Structure](#3-structure)
-4. [Standard Service Flow](#4-standard-service-flow)
-5. [ServiceResponse](#5-serviceresponse)
-6. [Config](#6-config)
-7. [Function List](#7-function-list)
-8. [Worker Map](#8-worker-map)
-9. [Export Requirements](#9-export-requirements)
-10. [Main Function (Optional)](#10-main-function-optional)
-11. [Rules](#11-rules)
-12. [Naming Conventions](#12-naming-conventions)
-13. [Common Pitfalls](#13-common-pitfalls)
-14. [Minimal Example](#14-minimal-example)
-15. [How to Add a New Service](#15-how-to-add-a-new-service)
+- [Service Layer Documentation](#service-layer-documentation)
+  - [Table of Contents](#table-of-contents)
+  - [1. Overview](#1-overview)
+  - [2. Service Philosophy](#2-service-philosophy)
+  - [3. Structure](#3-structure)
+  - [4. Standard Service Flow](#4-standard-service-flow)
+    - [Example](#example)
+  - [5. ServiceResponse](#5-serviceresponse)
+  - [6. Config](#6-config)
+  - [7. Function List](#7-function-list)
+  - [8. Worker Map](#8-worker-map)
+  - [9. Export Requirements](#9-export-requirements)
+  - [10. Main Function (Optional)](#10-main-function-optional)
+  - [11. Rules](#11-rules)
+    - [11.1 Network](#111-network)
+    - [11.2 Response](#112-response)
+    - [11.3 Error Handling (Strict)](#113-error-handling-strict)
+    - [11.4 Data Normalization](#114-data-normalization)
+    - [11.5 Heatmap Format (Standard)](#115-heatmap-format-standard)
+      - [Explanation](#explanation)
+      - [Rules](#rules)
+      - [Notes](#notes)
+    - [11.6 Cache Compatibility](#116-cache-compatibility)
+    - [11.7 Side Effects](#117-side-effects)
+    - [11.8 Worker Constraints](#118-worker-constraints)
+  - [12. Naming Conventions](#12-naming-conventions)
+  - [13. Common Pitfalls](#13-common-pitfalls)
+  - [14. Minimal Example](#14-minimal-example)
+  - [15. How to Add a New Service](#15-how-to-add-a-new-service)
 
 ---
 
@@ -35,7 +49,6 @@ It acts as a **bridge between APIs and the task layer**.
 
 Service layer must be:
 
-* Stateless → no memory
 * Deterministic → same input = same output
 * Side-effect free → no DB, no cache updates
 * Controlled by task layer → no retry or scheduling logic
@@ -195,24 +208,53 @@ Used for activity-based data (GitHub, LeetCode, etc.)
 
 ```json
 {
-  "year": {
-    "streak": 0,
-    "totalActiveDays": 0,
-    "heatmap": [
-      { "date": 20514, "count": 5 }
-    ]
+  "heatmap": {
+    "years": {
+      "2012": {
+        "heatmap": [
+          { "ts": 1356998400000, "count": 12 }
+        ],
+        "currentStreak": 5,
+        "longestStreak": 10,
+        "totalActiveDays": 40,
+        "totalContributions": 300,
+      }
+    },
+    "global": {
+      "currentStreak": 8,
+      "longestStreak": 20,
+      "totalActiveDays": 100,
+      "totalContributions": 300,
+    }
   }
 }
 ```
 
-**Explanation:**
+#### Explanation
 
-- `date` → Day index (`timestamp / 86400000`)
-- `count` → Activity count for that day
-- Data must be sorted by date
-- No duplicate dates
+- `ts` → Unix timestamp in **milliseconds (UTC normalized)**
+- `count` → Activity count for that day  
+- `heatmap` → Contains only days with `count ≥ 1` (no zero entries)  
+- `years` → Groups data by year for efficient access and rendering  
+- `currentStreak` → Ongoing consecutive active days  
+- `longestStreak` → Maximum streak achieved  
+- `totalActiveDays` → Total number of active days  
 
-👉 Ensures consistency across all service providers
+#### Rules
+
+- Data must be **sorted by `ts` (ascending)**  
+- No duplicate timestamps  
+- All timestamps must represent **start of day in UTC**  
+- Year key must match the timestamp’s year  
+
+#### Notes
+
+- Optimized for:
+  - caching  
+  - fast frontend rendering  
+  - minimal transformation logic  
+
+👉 Ensures consistency across all service providers while staying scalable and simple
 
 ### 11.6 Cache Compatibility
 
@@ -225,6 +267,7 @@ Data must be:
 
 - Date objects
 - Functions or methods
+- only continues function can be send with parameter continues: callable
 
 ### 11.7 Side Effects
 

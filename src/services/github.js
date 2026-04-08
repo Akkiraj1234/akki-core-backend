@@ -3,6 +3,7 @@ const { handleServiceError } = require("../utils.js");
 const { SECRET, CONFIG } = require("../config");
 
 // config
+// currentlly only support prefefiend config later can add dynamic username input
 const USERNAME = CONFIG.github.username;
 const PROFILE_INFO_URL = `https://api.github.com/users/${USERNAME}`;
 const TIMELINE_URL = `https://api.github.com/users/${USERNAME}/events`;
@@ -73,27 +74,47 @@ function normalizeGithubEvent(event) {
 }
 
 function formatGithubHeatmap(weeks) {
-    /**
-     * Convert GitHub weeks -> flat [{ date: dayIndex, count }]
-     * (same as LeetCode format)
-     */
-
     const dayCountMap = new Map();
 
-    for (const week of weeks) {
-        for (const day of week.contributionDays) {
+    for (const week of weeks ?? []) {
+        for (const day of week?.contributionDays ?? []) {
             const dayIndex = Math.floor(new Date(day.date).getTime() / 86400000);
             const count = Number(day.contributionCount) || 0;
 
             if (!Number.isFinite(dayIndex)) continue;
+
             dayCountMap.set(dayIndex, (dayCountMap.get(dayIndex) ?? 0) + count);
         }
     }
 
-    return Array.from(dayCountMap.entries())
+    const heatmap = Array.from(dayCountMap.entries())
         .map(([date, count]) => ({ date, count }))
+        .filter(day => day.count > 0) 
         .sort((a, b) => a.date - b.date);
+
+    let totalActiveDays = 0;
+    let streak = 0;
+    let currentStreak = 0;
+
+    for (let i = 0; i < heatmap.length; i++) {
+        const day = heatmap[i];
+
+        if (day.count > 0) {
+            totalActiveDays++;
+            currentStreak++;
+            streak = Math.max(streak, currentStreak);
+        } else {
+            currentStreak = 0;
+        }
+    }
+
+    return {
+        heatmap,
+        totalActiveDays,
+        streak
+    };
 }
+
 const GITHUB_GRAPHQL_QUERY = `
 query ($username: String!) {
   user(login: $username) {
@@ -137,9 +158,7 @@ async function fetchGithubHeatmap({ username }) {
             query: GITHUB_GRAPHQL_QUERY,
             variables: { username: selectedUsername }
         },
-        headers: {
-            Authorization: `Bearer ${SECRET.GITHUB_FG_ACCESS_TOKEN}`
-        }
+        headers: getAuthHeaders()
     });
 
     return handleServiceError({
@@ -161,22 +180,55 @@ async function fetchGithubHeatmap({ username }) {
             };
         }
     });
+}async function fetchGithubHeatmap({ username }) {
+    const selectedUsername = username ?? USERNAME;
+    const currentYear = new Date().getFullYear();
+
+    const response = await POST({
+        url: "https://api.github.com/graphql",
+        data: {
+            query: GITHUB_GRAPHQL_QUERY,
+            variables: { username: selectedUsername }
+        },
+        headers: getAuthHeaders()
+    });
+
+    return handleServiceError({
+        response,
+        format: (data) => {
+            const payload = data?.data?.user?.contributionsCollection?.contributionCalendar;
+
+            const {
+                heatmap,
+                totalActiveDays,
+                streak
+            } = formatGithubHeatmap(payload?.weeks ?? []);
+
+            return {
+                [currentYear]: {
+                    streak,
+                    totalActiveDays,
+                    heatmap
+                }
+            };
+        }
+    });
 }
 
 const worker_map = {
-    "getGithubProfile": {
+    "GithubProfileData": {
         callable: getGithubProfile,
         key: "github.profile",
         priority: "high",
         next_run: 2 * 3600 * 1000
     },
-    "getGithubEvents": {
+    "GithubEventsData": {
         callable: getGithubEvents,
         key: "github.events",
         priority: "medium",
         next_run: 30 * 60 * 1000
     },
-    "fetchGithubHeatmap": {
+    "GithubHeatmapData": {
         callable: fetchGithubHeatmap,
         key: "github.heatmap",
         priority: "high",

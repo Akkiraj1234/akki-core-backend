@@ -123,131 +123,151 @@ function handleServiceError({ response, format }) {
         code: response.code
     });
 }
-// return data in format follow docs.service.service.md[11.5 Heatmap Format (Standard)]
-// {
-//   "heatmap": {
-//     "years": {
-//       "2012": {
-//         "heatmap": [
-//           { "ts": 1356998400000, "count": 12 }
-//         ],
-//         "currentStreak": 5,
-//         "longestStreak": 10,
-//         "totalActiveDays": 40,
-//         "totalContributions": 300,
-//       }
-//     },
-//     "global": {
-//       "currentStreak": 8,
-//       "longestStreak": 20,
-//       "totalActiveDays": 100,
-//       "totalContributions": 300,
-//     }
-//   }
-// }
-// 
-// take input as 
-// heatmap: [
-//   { date: 1356998400000, count: 5 },
-//   { date: 1357084800000, count: 3 }
-// ]
-// make sure input dont have invalid date, count and also handle null or undefined input
-// also make sure output heatmap only have date and count and also sort by date in ascending order
-// and also no dubplicate date in the input 
-// suppose to follow accseding order
 
 
-function isStreak({time1, time2}){
-    const day1 = Math.floor(time1 / 86400000);
-    const day2 = Math.floor(time2 / 86400000);
-    const diff = Math.abs( day2 - day1 );
-    
-    return diff === 1; // we will never get same day
+function isStreak(prev, curr) {
+    if (prev === null) return false;
+    const d1 = Math.floor(prev / 86400000);
+    const d2 = Math.floor(curr / 86400000);
+    return Math.abs(d2 - d1) === 1;
 }
 
-function formatHeatmap(heatmap) {
-    let globalLongestStreak = 0;
-    let globalTotalActiveDays = 0;
-    let globalTotalContributions = 0;
-
-    let longestStreak = 0;
-    let totalActiveDays = 0;
-    let totalContributions = 0;
-
-    let currentStreak = 0;
-    let previousTime = null;
-    let currentYear = null;
-    let heatmapData = [];
+function formatHeatmap(heatmap = []) {
+    /**
+     * Formats raw heatmap data into a normalized yearly + global structure.
+     *
+     * ------------------------------------------------------------
+     * Input:
+     * ------------------------------------------------------------
+     * heatmap: Array<{
+     *   date: number (timestamp in ms),
+     *   count: number
+     * }>
+     *
+     * ------------------------------------------------------------
+     * Output (Standard Format):
+     * ------------------------------------------------------------
+     * {
+     *   years: {
+     *     [year: string]: {
+     *       heatmap: Array<{ date: number, count: number }>,
+     *       currentStreak: number,
+     *       longestStreak: number,
+     *       totalActiveDays: number,
+     *       totalContributions: number
+     *     }
+     *   },
+     *   global: {
+     *     currentStreak: number,
+     *     longestStreak: number,
+     *     totalActiveDays: number,
+     *     totalContributions: number
+     *   }
+     * }
+     *
+     * ------------------------------------------------------------
+     * Rules:
+     * ------------------------------------------------------------
+     * - Single pass processing (O(n))
+     * - Ignores invalid entries (null, bad date, count <= 0)
+     * - No duplicate handling (assumes input responsibility)
+     * - No side effects
+     * - Deterministic output
+     */
     const years = {};
 
-    for (const item of heatmap) {
+    const state = {
+        currentYear: null,
+        previousTime: null,
 
-        // safety check for input data
+        year: {
+            heatmap: [],
+            currentStreak: 0,
+            longestStreak: 0,
+            totalActiveDays: 0,
+            totalContributions: 0
+        },
+
+        global: {
+            longestStreak: 0,
+            totalActiveDays: 0,
+            totalContributions: 0
+        }
+    };
+
+    function finalizeYear() {
+        const y = state.currentYear;
+        if (y === null || state.year.totalContributions === 0) return;
+
+        years[y] = { ...state.year };
+
+        state.global.longestStreak = Math.max(
+            state.global.longestStreak,
+            state.year.longestStreak
+        );
+
+        state.global.totalActiveDays += state.year.totalActiveDays;
+        state.global.totalContributions += state.year.totalContributions;
+    }
+
+    function resetYear(year) {
+        state.currentYear = year;
+        state.year = {
+            heatmap: [],
+            currentStreak: 0,
+            longestStreak: 0,
+            totalActiveDays: 0,
+            totalContributions: 0
+        };
+        state.previousTime = null;
+    }
+
+    for (const item of heatmap) {
         const { date = null, count = 0 } = item ?? {};
-        if ( date === null || count <= 0 ) continue; // count less then 0 consider invalid data
+
+        if (!date || count <= 0) continue;
+
         const year = new Date(date).getUTCFullYear();
         if (!year || Number.isNaN(year)) continue;
 
+        if (state.currentYear !== year) {
+            finalizeYear();
+            resetYear(year);
+        }
 
-        if ( currentYear === null || currentYear !== year ) {
-            
-            // if data is more then 0 then only add data
-            if (totalContributions > 0) {
-                years[currentYear] = {
-                    heatmap: heatmapData,
-                    currentStreak,
-                    longestStreak,
-                    totalActiveDays,
-                    totalContributions
-                }
-            }
-            currentYear = year;
-            globalLongestStreak = Math.max(globalLongestStreak, longestStreak);
-            globalTotalActiveDays += totalActiveDays;
-            globalTotalContributions += totalContributions;
-            heatmapData = [];
-            
-            currentStreak = 1;
-            longestStreak = 1;
-            totalActiveDays = 0;
-            totalContributions = 0;
+        // streak logic
+        if (isStreak(state.previousTime, date)) {
+            state.year.currentStreak += 1;
+        } else {
+            state.year.currentStreak = 1;
         }
-        if (isStreak({time1: previousTime, time2: date})) {
-            currentStreak += 1;
-            longestStreak = Math.max(longestStreak, currentStreak);
-        }
-        else {
-            currentStreak = 1;
-        }
-        previousTime = date;
-        totalContributions += count;
-        totalActiveDays += 1;
-        if (count > 0) { 
-            heatmapData.push({ date, count })
-        }
+
+        state.year.longestStreak = Math.max(
+            state.year.longestStreak,
+            state.year.currentStreak
+        );
+
+        // aggregation
+        state.year.totalActiveDays += 1;
+        state.year.totalContributions += count;
+
+        state.year.heatmap.push({ date, count });
+
+        state.previousTime = date;
     }
-    if (totalContributions > 0) {
-        years[currentYear] = {
-            heatmap: heatmapData,
-            currentStreak,
-            longestStreak,
-            totalActiveDays,
-            totalContributions
-        }
-    }
-    globalLongestStreak = Math.max(globalLongestStreak, longestStreak);
-    globalTotalActiveDays += totalActiveDays;
-    globalTotalContributions += totalContributions;
+
+    // finalize last year
+    finalizeYear();
 
     return {
-        ... years,
-        meta: {
-            currentStreak: currentStreak,
-            longestStreak: globalLongestStreak,
-            totalActiveDays: globalTotalActiveDays,
-            totalContributions: globalTotalContributions
+        years,
+        global: {
+            currentStreak: state.year.currentStreak,
+            longestStreak: state.global.longestStreak,
+            totalActiveDays: state.global.totalActiveDays,
+            totalContributions: state.global.totalContributions
         }
-    }
+    };
 }
 
 module.exports = {

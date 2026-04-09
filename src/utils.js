@@ -154,6 +154,7 @@ function handleServiceError({ response, format }) {
 // make sure input dont have invalid date, count and also handle null or undefined input
 // also make sure output heatmap only have date and count and also sort by date in ascending order
 // and also no dubplicate date in the input 
+// suppose to follow accseding order
 
 
 function isStreak({time1, time2}){
@@ -180,14 +181,17 @@ function formatHeatmap(heatmap) {
     const years = {};
 
     for (const item of heatmap) {
-        if (!item) continue;
 
-        const { date, count = 0 } = item ?? {};
+        // safety check for input data
+        const { date = null, count = 0 } = item ?? {};
+        if ( date === null || count <= 0 ) continue; // count less then 0 consider invalid data
         const year = new Date(date).getUTCFullYear();
         if (!year || Number.isNaN(year)) continue;
-        
-        if (currentYear === null || currentYear !== year) {
+
+
+        if ( currentYear === null || currentYear !== year ) {
             
+            // if data is more then 0 then only add data
             if (totalContributions > 0) {
                 years[currentYear] = {
                     heatmap: heatmapData,
@@ -197,25 +201,23 @@ function formatHeatmap(heatmap) {
                     totalContributions
                 }
             }
-            // the value reinitailization is suppose to happend first
-            // because if the heatmap have only one entry then the streak should be 1 not 0
-            currentStreak = 1;
-            longestStreak = 1;
-            totalActiveDays = 1;
-            totalContributions = 0;
-
             currentYear = year;
             globalLongestStreak = Math.max(globalLongestStreak, longestStreak);
             globalTotalActiveDays += totalActiveDays;
             globalTotalContributions += totalContributions;
             heatmapData = [];
+            
+            currentStreak = 1;
+            longestStreak = 1;
+            totalActiveDays = 0;
+            totalContributions = 0;
         }
         if (isStreak({time1: previousTime, time2: date})) {
             currentStreak += 1;
             longestStreak = Math.max(longestStreak, currentStreak);
         }
         else {
-            currentStreak = 0;
+            currentStreak = 1;
         }
         previousTime = date;
         totalContributions += count;
@@ -233,7 +235,19 @@ function formatHeatmap(heatmap) {
             totalContributions
         }
     }
-    return years;
+    globalLongestStreak = Math.max(globalLongestStreak, longestStreak);
+    globalTotalActiveDays += totalActiveDays;
+    globalTotalContributions += totalContributions;
+
+    return {
+        ... years,
+        meta: {
+            currentStreak: currentStreak,
+            longestStreak: globalLongestStreak,
+            totalActiveDays: globalTotalActiveDays,
+            totalContributions: globalTotalContributions
+        }
+    }
 }
 
 module.exports = {

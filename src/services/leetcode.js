@@ -1,23 +1,25 @@
+const { formatHeatmap, handleServiceError } = require("../utils.js");
 const { POST } = require("../infrastructure")
 const { CONFIG } = require("../config");
-const { handleServiceError } = require("../utils.js");
 
+// config
 const LEETCODE_API_ENDPOINT = CONFIG.leetcode.endpoint
 const USERNAME = CONFIG.leetcode.username
 
+// Thing i am fixing 
+// 1. code structure and readability
+// 2. heatmap data always using formatHeatmap
+// 3. function should not take input from global scope must use default value.
+
 // Things to fix
-// 1. remove repeated logic
-// 2. fetchLeetcodeHeatmapLastNYears add a argument name active user years to return only years with activity, and add a argument name baseYear to specify the base year for last N years calculation (default to current year)
-// 3. fix formatLeetcodeHeatmap to use dict {date, data} to store heatmap and + array to itrate easily over each date
-// 4. requests should handle all error documanted bellow
+// 1. fetchLeetcodeHeatmapLastNYears add a argument name active user years to return only years with activity, and add a argument name baseYear to specify the base year for last N years calculation (default to current year)
+
 
 function _createSubmissionCalendarQuery(yearList = []) {
     /**
-     * Build GraphQL query for LeetCode submission calendar by years.
-     * @param {number[]} yearList - List of years (must not be empty)
-     * @returns {string} GraphQL query string
+     * Builds a GraphQL query to fetch LeetCode submission calendar data
+     * for multiple years in a single request.
      */
-    
     const yearQueries = yearList.map(year => `
         year${year}: userCalendar(year: ${year}) {
             submissionCalendar
@@ -32,6 +34,7 @@ function _createSubmissionCalendarQuery(yearList = []) {
         }
     }`
 }
+
 
 function formatLeetcodeHeatmap(data) {
     /**
@@ -60,7 +63,7 @@ function formatLeetcodeHeatmap(data) {
         .sort((a, b) => a.date - b.date);
 }
 
-async function LeetcodeProfileData({ username }) {
+async function LeetcodeProfileData() {
     /**
      * Fetch LeetCode profile stats (solved vs total by difficulty).
      * @param {string} username

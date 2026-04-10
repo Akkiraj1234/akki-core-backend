@@ -1,6 +1,6 @@
 const { formatHeatmap, handleServiceError } = require("../utils.js");
 const { POST } = require("../infrastructure")
-const { CONFIG } = require("../config");
+const { createConfigNotError, createMissingRequiredInputError } = require("../error.js");
 
 // config
 const LEETCODE_API_ENDPOINT = CONFIG.leetcode.endpoint

@@ -1,6 +1,7 @@
 const REDACTED = "[REDACTED]";
 const MAX_STRING_PREVIEW = 200;
 const MAX_DEPTH = 8;
+const { ERROR_TYPES } = require("./error.js");
 
 const SENSITIVE_KEY_PATTERNS = [
     "authorization",
@@ -86,23 +87,6 @@ function sanitizeValue(value, depth, seen) {
 function sanitize(input) {
     return sanitizeValue(input, 0, new WeakSet());
 }
-
-const ERROR_TYPES = Object.freeze({
-    NETWORK_FAILURE: "NETWORK_FAILURE",
-    SERVER_FAILURE: "SERVER_FAILURE",
-    RATE_LIMITED: "RATE_LIMITED",
-    TEMPORARY_UNAVAILABLE: "TEMPORARY_UNAVAILABLE",
-    TIMEOUT: "TIMEOUT",
-
-    NOT_FOUND: "NOT_FOUND",
-    UNAUTHORIZED: "UNAUTHORIZED",
-    FORBIDDEN: "FORBIDDEN",
-    BAD_REQUEST: "BAD_REQUEST",
-    VALIDATION_FAILED: "VALIDATION_FAILED",
-
-    PARSE_FAILURE: "PARSE_FAILURE",
-    UNKNOWN_FAILURE: "UNKNOWN_FAILURE"
-});
 
 function createResponse({ data = null, error = null, code = null }) {
     return { data, error, code };

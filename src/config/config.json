@@ -1,30 +1,50 @@
 {
-  "spotify": {
-    "redirect_uri": "http://127.0.0.1:8888/callback",
-    "show_dialog": false,
-    "scopes": [
-      "user-read-playback-state",
-      "user-read-currently-playing",
-      "playlist-read-private",
-      "user-top-read",
-      "user-read-recently-played"
-    ],
-    "username": "Akki Raj",
-    "id": "ssiywg3v3lnc4z2wh7dv5clzu"
-  },
-  "github": {
-    "username": "Akkiraj1234"
-  },
-  "leetcode": {
-    "username": "akhand_raj",
-    "endpoint": "https://leetcode.com/graphql"
-  },
-  "roadmap": {
-    "username": "akhand",
-    "endpoint": "https://roadmap.sh/api",
-    "routes": {
-      "profile": "v1-get-public-profile"
+    "services": {
+        "spotify": {
+            "account": {
+                "username": "Akki Raj",
+                "id": "ssiywg3v3lnc4z2wh7dv5clzu"
+            },
+            "options": {
+                "show_dialog": false,
+                "scopes": [
+                    "user-read-playback-state",
+                    "user-read-currently-playing",
+                    "playlist-read-private",
+                    "user-top-read",
+                    "user-read-recently-played"
+                ]
+            }
+        },
+        "github": {
+            "account": {
+                "username": "Akkiraj1234"
+            },
+            "options": {
+                "heatmap": {
+                    "years": 10
+                }
+            }
+        },
+        "leetcode": {
+            "account": {
+                "username": "akhand_raj"
+            },
+            "options": {
+                "heatmap": {
+                    "years": 10
+                }
+            }
+        },
+        "roadmap": {
+            "account": {
+                "username": "akhand"
+            },
+            "options": {
+                "heatmap": {
+                    "years": 10
+                }
+            }
+        }
     }
-  }
 }
-

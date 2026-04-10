@@ -126,7 +126,7 @@ function handleServiceError({ response, format }) {
 
 
 function isStreak(prev, curr) {
-    if (prev === null) return false;
+    if (prev === null || curr === null) return false;
     const d1 = Math.floor(prev / 86400000);
     const d2 = Math.floor(curr / 86400000);
     return Math.abs(d2 - d1) === 1;
@@ -234,8 +234,6 @@ function formatHeatmap(heatmap = []) {
             finalizeYear();
             resetYear(year);
         }
-
-        // streak logic
         if (isStreak(state.previousTime, date)) {
             state.year.currentStreak += 1;
         } else {
@@ -247,16 +245,12 @@ function formatHeatmap(heatmap = []) {
             state.year.currentStreak
         );
 
-        // aggregation
         state.year.totalActiveDays += 1;
         state.year.totalContributions += count;
-
         state.year.heatmap.push({ date, count });
-
         state.previousTime = date;
     }
-
-    // finalize last year
+    
     finalizeYear();
 
     return {
@@ -279,28 +273,28 @@ module.exports = {
 };
 
 
-if (require.main === module) {
-    const exampleInput = [
-        { date: 1356998400000, count: 5 },  // 2013-01-01
-        { date: 1357084800000, count: 3 },  // 2013-01-02
-        { date: 1357171200000, count: 2 },  // 2013-01-03
-        { date: 1357603200000, count: 4 },  // 2013-01-08
-        { date: 1357689600000, count: 0 },  // 2013-01-09
-        { date: 1357344000000, count: 1 },  // 2013-01-05
-        { date: "invalid-date", count: 3 }, // invalid
-        null,                               // null entry
-        { date: 1357776000000 },            // 2013-01-10 (missing count)
-        { date: 1357862400000, count: -5 }, // 2013-01-11 (negative scount)
-        { date: 1388534400000, count: 4 },  // 2014-01-01
-        { date: 1388620800000, count: 1 },  // 2014-01-02
-        { date: 1388707200000, count: 1 },  // 2014-01-03
-    ];
+// if (require.main === module) {
+//     const exampleInput = [
+//         { date: 1356998400000, count: 5 },  // 2013-01-01
+//         { date: 1357084800000, count: 3 },  // 2013-01-02
+//         { date: 1357171200000, count: 2 },  // 2013-01-03
+//         { date: 1357603200000, count: 4 },  // 2013-01-08
+//         { date: 1357689600000, count: 0 },  // 2013-01-09
+//         { date: 1357344000000, count: 1 },  // 2013-01-05
+//         { date: "invalid-date", count: 3 }, // invalid
+//         null,                               // null entry
+//         { date: 1357776000000 },            // 2013-01-10 (missing count)
+//         { date: 1357862400000, count: -5 }, // 2013-01-11 (negative scount)
+//         { date: 1388534400000, count: 4 },  // 2014-01-01
+//         { date: 1388620800000, count: 1 },  // 2014-01-02
+//         { date: 1388707200000, count: 1 },  // 2014-01-03
+//     ];
 
-    console.log(
-        JSON.stringify(
-            formatHeatmap(exampleInput),
-            null,
-            2
-        )
-    );
-}
+//     console.log(
+//         JSON.stringify(
+//             formatHeatmap(exampleInput),
+//             null,
+//             2
+//         )
+//     );
+// }

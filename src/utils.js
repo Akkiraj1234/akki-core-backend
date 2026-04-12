@@ -116,48 +116,48 @@ function isStreak(prev, curr) {
     return Math.abs(d2 - d1) === 1;
 }
 
+/**
+ * Formats raw heatmap data into a normalized yearly + global structure.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * ------------------------------------------------------------
+ * heatmap: Array<{
+ *   date: number (timestamp in ms),
+ *   count: number
+ * }>
+ *
+ * ------------------------------------------------------------
+ * Output (Standard Format):
+ * ------------------------------------------------------------
+ * {
+ *   years: {
+ *     [year: string]: {
+ *       heatmap: Array<{ date: number, count: number }>,
+ *       currentStreak: number,
+ *       longestStreak: number,
+ *       totalActiveDays: number,
+ *       totalContributions: number
+ *     }
+ *   },
+ *   global: {
+ *     currentStreak: number,
+ *     longestStreak: number,
+ *     totalActiveDays: number,
+ *     totalContributions: number
+ *   }
+ * }
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * ------------------------------------------------------------
+ * - Single pass processing (O(n))
+ * - Ignores invalid entries (null, bad date, count <= 0)
+ * - No duplicate handling (assumes input responsibility)
+ * - No side effects
+ * - Deterministic output
+ */
 function formatHeatmap(heatmap = []) {
-    /**
-     * Formats raw heatmap data into a normalized yearly + global structure.
-     *
-     * ------------------------------------------------------------
-     * Input:
-     * ------------------------------------------------------------
-     * heatmap: Array<{
-     *   date: number (timestamp in ms),
-     *   count: number
-     * }>
-     *
-     * ------------------------------------------------------------
-     * Output (Standard Format):
-     * ------------------------------------------------------------
-     * {
-     *   years: {
-     *     [year: string]: {
-     *       heatmap: Array<{ date: number, count: number }>,
-     *       currentStreak: number,
-     *       longestStreak: number,
-     *       totalActiveDays: number,
-     *       totalContributions: number
-     *     }
-     *   },
-     *   global: {
-     *     currentStreak: number,
-     *     longestStreak: number,
-     *     totalActiveDays: number,
-     *     totalContributions: number
-     *   }
-     * }
-     *
-     * ------------------------------------------------------------
-     * Rules:
-     * ------------------------------------------------------------
-     * - Single pass processing (O(n))
-     * - Ignores invalid entries (null, bad date, count <= 0)
-     * - No duplicate handling (assumes input responsibility)
-     * - No side effects
-     * - Deterministic output
-     */
     const years = {};
 
     const state = {
@@ -248,13 +248,99 @@ function formatHeatmap(heatmap = []) {
     };
 }
 
+async function measureMemory(fn, label = "Task", options = {}) {
+    const {
+        sampleIntervalMs = 10,
+        log = true,
+        returnMetrics = false
+    } = options;
+
+    const hasGC = typeof global.gc === "function";
+    const toMB = (b) => (b / 1024 / 1024).toFixed(2);
+
+    if (hasGC) global.gc();
+
+    const before = process.memoryUsage();
+    const start = performance.now();
+
+    let peakHeapUsed = before.heapUsed;
+    let peakRss = before.rss;
+
+    const sampler = setInterval(() => {
+        const usage = process.memoryUsage();
+        if (usage.heapUsed > peakHeapUsed) peakHeapUsed = usage.heapUsed;
+        if (usage.rss > peakRss) peakRss = usage.rss;
+    }, Math.max(1, sampleIntervalMs));
+
+    let result;
+    try {
+        result = await fn();
+    } finally {
+        clearInterval(sampler);
+        if (hasGC) global.gc();
+    }
+
+    const after = process.memoryUsage();
+    const end = performance.now();
+
+    const metrics = {
+        label,
+        durationMs: Number((end - start).toFixed(2)),
+        gcEnabled: hasGC,
+        start: {
+            heapUsedMB: Number(toMB(before.heapUsed)),
+            rssMB: Number(toMB(before.rss)),
+            externalMB: Number(toMB(before.external || 0)),
+            arrayBuffersMB: Number(toMB(before.arrayBuffers || 0))
+        },
+        end: {
+            heapUsedMB: Number(toMB(after.heapUsed)),
+            rssMB: Number(toMB(after.rss)),
+            externalMB: Number(toMB(after.external || 0)),
+            arrayBuffersMB: Number(toMB(after.arrayBuffers || 0))
+        },
+        delta: {
+            retainedHeapMB: Number(toMB(after.heapUsed - before.heapUsed)),
+            peakHeapGrowthMB: Number(toMB(peakHeapUsed - before.heapUsed)),
+            rssMB: Number(toMB(after.rss - before.rss)),
+            peakRssGrowthMB: Number(toMB(peakRss - before.rss)),
+            externalMB: Number(toMB((after.external || 0) - (before.external || 0))),
+            arrayBuffersMB: Number(toMB((after.arrayBuffers || 0) - (before.arrayBuffers || 0)))
+        }
+    };
+
+    if (log) {
+        const line = "─".repeat(40);
+        console.log(`\n┌${line}┐`);
+        console.log(`│  🧠  ${label.padEnd(33)}│`);
+        console.log(`├${line}┤`);
+        console.log(`│  Retained   : ${toMB(after.heapUsed - before.heapUsed).padStart(8)} MB      │`);
+        console.log(`│  Peak Heap  : ${toMB(peakHeapUsed - before.heapUsed).padStart(8)} MB      │`);
+        console.log(`│  Heap       : ${`${toMB(before.heapUsed)}→${toMB(after.heapUsed)}`.padStart(13)} MB │`);
+        console.log(`│  RSS Δ      : ${toMB(after.rss - before.rss).padStart(8)} MB      │`);
+        console.log(`│  External Δ : ${toMB((after.external || 0) - (before.external || 0)).padStart(8)} MB      │`);
+        console.log(`│  Time       : ${(end - start).toFixed(2).padStart(8)} ms      │`);
+        console.log(`│  GC         : ${hasGC ? "Enabled " : "Disabled"}           │`);
+        console.log(`└${line}┘\n`);
+    }
+
+    if (returnMetrics) {
+        return { result, metrics };
+    }
+    return result;
+}
+
 module.exports = {
     sanitize,
     createResponse,
     handleServiceError,
     ERROR_TYPES,
-    formatHeatmap
+    formatHeatmap,
+    measureMemory
 };
+
+// 1. optimize formatHeatmap() 
+// 
 
 
 // if (require.main === module) {

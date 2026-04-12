@@ -27,13 +27,9 @@
             }
         },
         "leetcode": {
-            "account": {
-                "username": "akhand_raj"
-            },
-            "options": {
-                "heatmap": {
-                    "years": 10
-                }
+            "config": {
+                "username": "akhand_raj",
+                "lastNYears": 10
             }
         },
         "roadmap": {

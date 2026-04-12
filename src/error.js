@@ -16,6 +16,8 @@ const ERROR_TYPES = Object.freeze({
     SERVICE_NOT_CONFIGURED: "SERVICE_NOT_CONFIGURED"
 });
 
+// all error should return full error object and also create responce with status code and message for backward compatibility with old code which is using response object to check for error
+
 function createError({
     type = ERROR_TYPES.UNKNOWN_FAILURE,
     message = "An unexpected error occurred.",
@@ -49,7 +51,7 @@ function createConfigNotError({ service, key, message = null } = {}) {
     });
 }
 
-function createMissingRequiredInputError({ field, service = null, operation = null } = {}) {
+function createMissingInputError({ field, service = null, operation = null } = {}) {
     return createError({
         type: ERROR_TYPES.MISSING_REQUIRED_INPUT,
         message: `Required input '${field ?? "unknown"}' is missing.`,
@@ -78,6 +80,6 @@ module.exports = {
     ERROR_TYPES,
     createError,
     createConfigNotError,
-    createMissingRequiredInputError,
+    createMissingInputError,
     createServiceNotConfiguredError
 };

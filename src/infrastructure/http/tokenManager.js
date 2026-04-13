@@ -1,5 +1,6 @@
 const { createResponse, handleServiceError } = require("../../utils.js")
-const { GET, POST } = require("./request.js")
+const { buildError, GET, POST } = require("./request.js")
+const { ERROR_TYPES } = require("./error.js");
 
 
 class AuthHandler {
@@ -125,6 +126,83 @@ class AuthHandler {
     }
 }
 
+
+class StaticAuthHandler {
+    constructor({
+        accessToken,
+        getAuthRequestConfig = null
+    }) {
+        this.accessToken = accessToken;
+        this.getAuthRequestConfig = getAuthRequestConfig;
+    }
+
+    async handlePost(callable) {
+        if (!this.accessToken) {
+            return createResponse({
+                data: null,
+                error: buildError({
+                    base: {
+                        type: ERROR_TYPES.SERVICE_NOT_CONFIGURED, 
+                        message: "no accsess token was found"},
+                    errorMessage: "no accsess token found"
+                }),
+                code: null
+            });
+        }
+
+        const headers = this.getAuthRequestConfig
+            ? this.getAuthRequestConfig(this)
+            : {};
+
+        const res = await callable( headers );
+
+        if (res.error?.type === "UNAUTHORIZED" || res.error?.type === "FORBIDDEN") {
+            return createResponse({
+                data: null,
+                error: res.error,
+                code: res.code
+            });
+        }
+
+        return res;
+    }
+}
+
+
+
+class StaticAuthHandler {
+    constructor({ accessToken }) {
+        this.accessToken = accessToken;
+    }
+
+    async handlePost(callable) {
+        if (!this.accessToken) {
+            return createResponse({
+                data: null,
+                error: new Error("Missing access token"),
+                code: null
+            });
+        }
+
+        const res = await callable(this.accessToken);
+
+        // same behavior as AuthHandler (consistency)
+        if (
+            res.error?.type === "UNAUTHORIZED" ||
+            res.error?.type === "FORBIDDEN"
+        ) {
+            return createResponse({
+                data: null,
+                error: res.error,
+                code: res.code
+            });
+        }
+
+        return res;
+    }
+}
+
 module.exports = {
-    AuthHandler
+    AuthHandler,
+    StaticAuthHandler
 }

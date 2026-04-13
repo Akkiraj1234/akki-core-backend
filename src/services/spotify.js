@@ -12,35 +12,45 @@ const TOP_TRACKS = "https://api.spotify.com/v1/me/top/tracks";
 const TOP_ARTISTS = "https://api.spotify.com/v1/me/top/artists";
 
 
-const authConfig = {
-    refreshToken: SECRET.SPOTIFY_AUTH_REFRESH_TOKEN,
-    clientId: SECRET.SPOTIFY_CLIENT_ID,
-    clientSecret: SECRET.SPOTIFY_CLIENT_SECRET,
-    TokenExchangeURL: TOKEN_URL,
-
-    getAuthRequestConfig: (authHandler) => {
-        const headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + (
-                Buffer.from(authHandler.clientId + ':' + authHandler.clientSecret).toString('base64')
-            )
-        }
-        const body = new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: authHandler.refreshToken
-        });
-
-        return { headers, body };
-    },
-
-    mapTokenResponse: (data) => {
-        return {
-            accessToken: data.access_token,
-            expiresIn: data.expires_in,
-            refreshToken: data.refresh_token
-        };
+function getAuthConfig( secrets ) {
+    if (!secrets.SPOTIFY_AUTH_REFRESH_TOKEN 
+        || !secrets.SPOTIFY_CLIENT_ID
+        || !secrets.SPOTIFY_CLIENT_SECRET
+    ){
+        throw createConfigNotError("spotify config not found error");
     }
-};
+
+    return {
+        refreshToken: SECRET.SPOTIFY_AUTH_REFRESH_TOKEN,
+        clientId: SECRET.SPOTIFY_CLIENT_ID,
+        clientSecret: SECRET.SPOTIFY_CLIENT_SECRET,
+        TokenExchangeURL: TOKEN_URL,
+
+        getAuthRequestConfig: (authHandler) => {
+            const headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + (
+                    Buffer.from(authHandler.clientId + ':' + authHandler.clientSecret).toString('base64')
+                )
+            }
+            const body = new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: authHandler.refreshToken
+            });
+
+            return { headers, body };
+        },
+
+        mapTokenResponse: (data) => {
+            return {
+                accessToken: data.access_token,
+                expiresIn: data.expires_in,
+                refreshToken: data.refresh_token
+            };
+        }
+    };
+}
+
 
 function getSongDataFromSpotifyItem(item) {
     return {

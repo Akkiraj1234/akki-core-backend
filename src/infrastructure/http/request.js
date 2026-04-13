@@ -38,7 +38,8 @@
 // should return by post and get : { data:dict, error:build_error(), code:httperor_int };
 // which supppose to be followed by all function like httserrorHandler, graphqlErrorHandler, POST, GET etc.
 
-const { createResponse, sanitize, ERROR_TYPES } = require("../../utils.js");
+const { createResponse, sanitize } = require("../../utils.js");
+const { ERROR_TYPES } = require("./error.js");
 const axios = require("axios");
 
 
@@ -282,6 +283,7 @@ async function GET({ url, params = null, headers = {} }) {
 }
 
 module.exports = {
+    buildError,
     POST,
     GET
 };

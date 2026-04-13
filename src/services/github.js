@@ -1,24 +1,39 @@
-const { GET, POST } = require("../infrastructure");
-const { handleServiceError } = require("../utils.js");
-const { SECRET, CONFIG } = require("../config");
+const { formatHeatmap, handleServiceError } = require("../utils");
+const { POST, GET, AuthHandler } = require("../infrastructure");
+const {
+    createConfigNotError,
+    createMissingInputError
+} = require("../error");
 
-// config
-// currentlly only support prefefiend config later can add dynamic username input
-const USERNAME = CONFIG.github.username;
-const PROFILE_INFO_URL = `https://api.github.com/users/${USERNAME}`;
+const PROFILE_INFO_URL = `https://api.github.com/users`;
 const TIMELINE_URL = `https://api.github.com/users/${USERNAME}/events`;
 
 
 
-function getAuthHeaders() {
-    return SECRET.GITHUB_FG_ACCESS_TOKEN
-        ? { Authorization: `Bearer ${SECRET.GITHUB_FG_ACCESS_TOKEN}` }
-        : {};
+function getAuthConfig( secrets ) {
+    if (!secrets.GITHUB_FG_ACCESS_TOKEN) {
+        throw createConfigNotError("GITHUB_FG_ACCESS_TOKEN");
+    }
+
+    return {
+        accessToken: secrets.GITHUB_FG_ACCESS_TOKEN,
+        
+        getAuthRequestConfig: (authHandler) => {
+            const headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': authHandler.accsessToken
+                    ? `Bearer ${authHandler.accsessToken}`
+                    : {}
+            }
+            return headers;
+        }
+    }
 }
 
-// data fetching functions
 
-async function getGithubProfile() {
+async function getGithubProfile({ ctx }) {
+    const authHandler = ctx?.github?.getAuthConfig;
+    if (!authHandler) return
     const response = await GET({
         url: PROFILE_INFO_URL,
         headers: getAuthHeaders()

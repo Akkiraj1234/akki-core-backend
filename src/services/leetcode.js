@@ -6,6 +6,7 @@ const {
 } = require("../error");
 
 const LEETCODE_API_ENDPOINT = "https://leetcode.com/graphql";
+const LEETCODE_HEADERS = { "Referer": "https://leetcode.com" };
 
 
 /**
@@ -175,7 +176,7 @@ async function LeetcodeProfileData({ username }) {
     const response = await POST({
         url: LEETCODE_API_ENDPOINT,
         data: { query, variables: { username } },
-        headers: { "Referer": "https://leetcode.com" }
+        headers: LEETCODE_HEADERS
     });
 
     return handleServiceError({
@@ -240,7 +241,7 @@ async function fetchLeetcodeHeatmapLastNYears({ username, lastNYears = 10, baseY
     const response = await POST({
         url: LEETCODE_API_ENDPOINT,
         data: { query, variables: { username } },
-        headers: { "Referer": "https://leetcode.com" }
+        headers: LEETCODE_HEADERS
     });
 
     return handleServiceError({
@@ -334,7 +335,7 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
     const response = await POST({
         url: LEETCODE_API_ENDPOINT,
         data: { query, variables: { username } },
-        headers: {"Referer": "https://leetcode.com"}
+        headers: LEETCODE_HEADERS
     });
 
     return handleServiceError({
@@ -362,10 +363,9 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
 }
 
 
-// id : {callable, prioriy, nextrun:ms}
 const worker_map = {
-    "configKey": "services.leetcode.config",
-    "function": {
+    configKey: "services.leetcode.config",
+    services: {
         "LeetcodeProfileData": {
             callable: LeetcodeProfileData,
             key: "leetcode.profile",
@@ -385,26 +385,7 @@ module.exports = {
     worker_map
 }
 
-
-async function main() {
-    const { CONFIG } = require("../config");
-    const { measureMemory } = require("../utils");
-    const configuration = CONFIG?.services.leetcode?.config ?? {};
-    
-    const data = await Promise.all([
-        LeetcodeProfileData( configuration ),
-        fetchLeetcodeHeatmapLastNYears( configuration )
-    ]);
-
-    data.forEach((res) => {
-        console.dir(
-            res?.error ? `No data found ${JSON.stringify(res.error)}` : res,
-            { depth: null, colors: true }
-        );
-    });
-}
-
-
 if (require.main === module) {
-    main();
+    const { runServices } = require("../utils")
+    runServices( worker_map )
 }

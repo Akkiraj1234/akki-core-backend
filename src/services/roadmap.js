@@ -1,3 +1,10 @@
+const { formatHeatmap, handleServiceError } = require("../utils");
+const { GET } = require("../infrastructure")
+const {
+    createConfigNotError,
+    createMissingInputError
+} = require("../error");
+
 /**
  * Data source reference:
  * roadmap.sh doesn't expose a public API.
@@ -13,14 +20,6 @@
  * https://github.com/kamranahmedse/developer-roadmap
  * https://github.com/kamranahmedse/developer-roadmap/blob/master/src/api/api.ts
  */
-
-const { formatHeatmap, handleServiceError } = require("../utils");
-const { GET } = require("../infrastructure")
-const {
-    createConfigNotError,
-    createMissingInputError
-} = require("../error");
-
 const PROFILEENDPOINT = "https://roadmap.sh/api/v1-get-public-profile";
 const ROADMAP_HEADERS = { "Referer": "https://roadmap.sh" };
 const AVATARENDPOINT = "https://assets.roadmap.sh/avatars"
@@ -153,7 +152,6 @@ async function RoadmapProfileData({ username }) {
         format: formatRoadmapdata
     });
 }
-
 
 
 const worker_map = {

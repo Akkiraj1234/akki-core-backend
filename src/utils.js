@@ -330,13 +330,43 @@ async function measureMemory(fn, label = "Task", options = {}) {
     return result;
 }
 
+function getDataWithAddress(data, address) {
+    const parts = address.split(".");
+    let current = data;
+
+    for (const part of parts) {
+        current = current?.[part];
+    }
+    return current ?? {};
+}
+
+async function runServices(worker_map) {
+    const { CONFIG } = require("./config");
+    const configuration = getDataWithAddress(
+        CONFIG, worker_map?.configKey ?? ""
+    )
+
+    const services = Object.values( worker_map.services || {} );
+    const data = await Promise.all(
+        services.map(({ callable }) => callable(configuration))
+    )
+
+    data.forEach((res) => {
+        console.dir(
+            res?.error ? `No data found ${JSON.stringify(res.error)}` : res,
+            { depth: null, colors: true }
+        );
+    });
+}
+
 module.exports = {
     sanitize,
     createResponse,
     handleServiceError,
     ERROR_TYPES,
     formatHeatmap,
-    measureMemory
+    measureMemory,
+    runServices
 };
 
 // 1. optimize formatHeatmap() 

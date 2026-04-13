@@ -1,7 +1,6 @@
 const REDACTED = "[REDACTED]";
 const MAX_STRING_PREVIEW = 200;
 const MAX_DEPTH = 8;
-const { ERROR_TYPES } = require("./error.js");
 
 const SENSITIVE_KEY_PATTERNS = [
     "authorization",
@@ -360,7 +359,6 @@ module.exports = {
     sanitize,
     createResponse,
     handleServiceError,
-    ERROR_TYPES,
     formatHeatmap,
     measureMemory,
     runServices

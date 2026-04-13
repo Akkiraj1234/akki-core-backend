@@ -352,10 +352,7 @@ async function runServices(worker_map) {
     )
 
     data.forEach((res) => {
-        console.dir(
-            res?.error ? `No data found ${JSON.stringify(res.error)}` : res,
-            { depth: null, colors: true }
-        );
+        console.log(JSON.stringify(res, null, 2));
     });
 }
 

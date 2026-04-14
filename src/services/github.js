@@ -1,34 +1,47 @@
 const { formatHeatmap, handleServiceError } = require("../utils");
-const { POST, GET, AuthHandler } = require("../infrastructure");
+const { POST, GET, StaticAuthHandler } = require("../infrastructure");
 const {
     createConfigNotError,
     createMissingInputError
 } = require("../error");
 
 const PROFILE_INFO_URL = `https://api.github.com/users`;
-const TIMELINE_URL = `https://api.github.com/users/${USERNAME}/events`;
+const GITHUB_AUTH_HANDLER = new StaticAuthHandler();
 
 
-
-function getAuthConfig( secrets ) {
-    if (!secrets.GITHUB_FG_ACCESS_TOKEN) {
-        throw createConfigNotError("GITHUB_FG_ACCESS_TOKEN");
-    }
-
-    return {
-        accessToken: secrets.GITHUB_FG_ACCESS_TOKEN,
+/**
+ * Initializes GitHub auth handler using provided secrets.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * { secrets: { GITHUB_FG_ACCESS_TOKEN: string } }
+ *
+ * ------------------------------------------------------------
+ * Behavior:
+ * - Extracts access token from secrets
+ * - Builds auth config for StaticAuthHandler
+ * - Injects config into module-level auth handler
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * - Must be called before any service function
+ * - Relies on global GITHUB_AUTH_HANDLER instance
+ * - Does not perform any API calls
+ */
+function init( secrets ) {
+    const config = {
+        accessToken : secrets.GITHUB_FG_ACCESS_TOKEN,
         
-        getAuthRequestConfig: (authHandler) => {
-            const headers = {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': authHandler.accsessToken
-                    ? `Bearer ${authHandler.accsessToken}`
-                    : {}
-            }
-            return headers;
-        }
+        getAuthRequestConfig: (authHandler) => ({
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization':`Bearer ${authHandler.accessToken}`,
+            'Referer': 'https://github.com'
+        })
     }
+    GITHUB_AUTH_HANDLER.fromConfig(config);
 }
+
+
 
 
 async function getGithubProfile({ ctx }) {

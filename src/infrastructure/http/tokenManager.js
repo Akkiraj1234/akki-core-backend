@@ -3,7 +3,7 @@ const { buildError, POST } = require("./request.js")
 const { 
     ERROR_TYPES, 
     createTokenExpiredError, 
-    createConfigNotFoundError 
+    createAuthHandlerNotConfiguredError
 } = require("./error.js");
 
 
@@ -113,13 +113,16 @@ class AuthHandler {
         const res = await callable(this.accessToken);
 
         // if (res.error && (res.code === 401 || res.code === 403)) {
-        if (res.error?.type === "UNAUTHORIZED" || res.error?.type === "FORBIDDEN") {
+        if (
+            res.error?.type === ERROR_TYPES.UNAUTHORIZED ||
+            res.error?.type === ERROR_TYPES.FORBIDDEN
+        ) {
             const error = await this.refreshAccessToken();
 
             if (error) {
                 return createResponse({
                     data: null,
-                    error,
+                    error: createTokenExpiredError(error),
                     code: error?.source?.code ?? null
                 });
             }
@@ -132,14 +135,19 @@ class AuthHandler {
 
 
 class StaticAuthHandler {
-    constructor() {
+    constructor({ onAuthConfigErrorMessage = null }) {
         this.accessToken = null;
         this.getAuthRequestHeader = null;
+        this.onAuthConfigErrorMessage = onAuthConfigErrorMessage;
     }
 
-    fromConfig({ accessToken, getAuthRequestHeader,}) {
+    fromConfig({ accessToken, getAuthRequestHeader, onAuthConfigErrorMessage}) {
         this.accessToken = accessToken ?? null;
         this.getAuthRequestHeader = getAuthRequestHeader ?? null;
+
+        this.onAuthConfigErrorMessage = 
+            onAuthConfigErrorMessage ?? this.onAuthConfigErrorMessage;
+        
         return this;
     }
 
@@ -147,9 +155,10 @@ class StaticAuthHandler {
         if (!this.accessToken) {
             return createResponse({
                 data: null,
-                error: createConfigNotFoundError({
-                    service: "StaticAuthHandler",
-                    key: "accessToken"
+                error: createAuthHandlerNotConfiguredError({
+                    handler: "StaticAuthHandler",
+                    message: this.onAuthConfigErrorMessage ?? 
+                        "Auth token missing or invalid"
                 }),
                 code: null
             });

@@ -1,6 +1,10 @@
 const { createResponse, handleServiceError } = require("../../utils.js")
-const { buildError, GET, POST } = require("./request.js")
-const { ERROR_TYPES } = require("./error.js");
+const { buildError, POST } = require("./request.js")
+const { 
+    ERROR_TYPES, 
+    createTokenExpiredError, 
+    createConfigNotFoundError 
+} = require("./error.js");
 
 
 class AuthHandler {
@@ -130,38 +134,40 @@ class AuthHandler {
 class StaticAuthHandler {
     constructor() {
         this.accessToken = null;
-        this.getAuthRequestheader = null;
+        this.getAuthRequestHeader = null;
     }
 
-    fromConfig({ accessToken, getAuthRequestheader,}) {
+    fromConfig({ accessToken, getAuthRequestHeader,}) {
         this.accessToken = accessToken ?? null;
-        this.getAuthRequestheader = getAuthRequestheader ?? null;
+        this.getAuthRequestHeader = getAuthRequestHeader ?? null;
+        return this;
     }
 
     async handlePost(callable) {
         if (!this.accessToken) {
             return createResponse({
                 data: null,
-                error: buildError({
-                    base: {
-                        type: ERROR_TYPES.SERVICE_NOT_CONFIGURED, 
-                        message: "no access token was found"},
-                    errorMessage: "no access token found"
+                error: createConfigNotFoundError({
+                    service: "StaticAuthHandler",
+                    key: "accessToken"
                 }),
                 code: null
             });
         }
 
-        const headers = this.getAuthRequestheader
-            ? this.getAuthRequestheader(this)
-            : {};
+        const headers = this.getAuthRequestHeader
+            ? this.getAuthRequestHeader(this)
+            : { Authorization: `Bearer ${this.accessToken}` };
 
         const res = await callable( headers );
 
-        if (res.error?.type === "UNAUTHORIZED" || res.error?.type === "FORBIDDEN") {
+        if (
+            res.error?.type === ERROR_TYPES.UNAUTHORIZED ||
+            res.error?.type === ERROR_TYPES.FORBIDDEN
+        ) {
             return createResponse({
                 data: null,
-                error: res.error,
+                error: createTokenExpiredError(res.error), 
                 code: res.code
             });
         }

@@ -7,37 +7,78 @@ const {
 } = require("./error.js");
 
 
-class AuthHandler {
-    constructor({
-        refreshToken,
-        clientId,
-        clientSecret,
-        TokenExchangeURL,
-        getAuthRequestConfig,
-        mapTokenResponse
-    }) {
-        /*
-        refreshToken: The refresh token obtained
-        clientId:  Client ID of token
-        clientSecret: Client Secret of token
-        HeaderGenerator: a callable function which generates headers takes, refreshToken, clientId and clientSecret
-                         as parameters and returns the headers with the access token set
-        */
-        this.refreshToken = refreshToken;
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.TokenExchangeURL = TokenExchangeURL;
 
-        this.getAuthRequestConfig = getAuthRequestConfig;
-        this.mapTokenResponse = mapTokenResponse;
+
+class AuthHandler {
+    constructor({ onAuthConfigErrorMessage = null }) {
+        this.refreshToken = null;
+        this.clientId = null;
+        this.clientSecret = null;
+        this.TokenExchangeURL = null;
+
+        this.getAuthRequestConfig = null;
+        this.mapTokenResponse = null;
 
         this.tokenExpiry = 0;
         this.accessToken = null;
         this.isRefreshing = false;
         this.refreshSubscribers = [];
+
+        this.onAuthConfigErrorMessage = onAuthConfigErrorMessage;
+    }
+
+    /*
+    refreshToken: The refresh token obtained
+    clientId:  Client ID of token
+    clientSecret: Client Secret of token
+    HeaderGenerator: a callable function which generates headers takes, refreshToken, clientId and clientSecret
+                        as parameters and returns the headers with the access token set
+    */
+    fromConfig({
+        refreshToken,
+        clientId,
+        clientSecret,
+        TokenExchangeURL,
+        getAuthRequestConfig,
+        mapTokenResponse,
+        onAuthConfigErrorMessage
+    }) {
+        this.refreshToken = refreshToken ?? null;
+        this.clientId = clientId ?? null;
+        this.clientSecret = clientSecret ?? null;
+        this.TokenExchangeURL = TokenExchangeURL ?? null;
+
+        this.getAuthRequestConfig = getAuthRequestConfig ?? null;
+        this.mapTokenResponse = mapTokenResponse ?? null;
+
+        this.onAuthConfigErrorMessage =
+            onAuthConfigErrorMessage ?? this.onAuthConfigErrorMessage;
+
+        return this;
+    }
+
+    isConfigured() {
+        // only imporant config
+        return (
+            this.refreshToken &&
+            this.clientId &&
+            this.clientSecret &&
+            this.TokenExchangeURL &&
+            this.getAuthRequestConfig &&
+            this.mapTokenResponse
+        );
     }
 
     async refreshAccessToken() {
+        if (!this.isConfigured()) {
+            return createAuthHandlerNotConfiguredError({
+                handler: "AuthHandler",
+                message:
+                    this.onAuthConfigErrorMessage ??
+                    "AuthHandler not initialized. Please call init(secrets)"
+            });
+        }
+
         if (this.isRefreshing) {
             const error = await this.waitForRefresh();
             return error ?? null;
@@ -99,6 +140,18 @@ class AuthHandler {
     }
 
     async handlePost(callable) {
+        if (!this.isConfigured()) {
+            return createResponse({
+                data: null,
+                error: createAuthHandlerNotConfiguredError({
+                    handler: "AuthHandler",
+                    message: this.onAuthConfigErrorMessage ??
+                        "AuthHandler not initialized"
+                }),
+                code: null
+            });
+        }
+
         if (!this.accessToken || Date.now() >= this.tokenExpiry) {
             const error = await this.refreshAccessToken();
 
@@ -132,6 +185,7 @@ class AuthHandler {
         return res;
     }
 }
+
 
 
 class StaticAuthHandler {

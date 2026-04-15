@@ -3,7 +3,10 @@ const { POST, GET, StaticAuthHandler } = require("../infrastructure");
 const { createConfigNotFoundError } = require("../error");
 
 const PROFILE_INFO_URL = `https://api.github.com/users`;
-const GITHUB_AUTH_HANDLER = new StaticAuthHandler();
+const GITHUB_AUTH_HANDLER = new StaticAuthHandler({
+    onAuthConfigErrorMessage: 
+        "Auth handler not initialized for GitHub service. Please run init(secrets)."
+});
 
 
 /**
@@ -27,7 +30,7 @@ const GITHUB_AUTH_HANDLER = new StaticAuthHandler();
  */
 function init( secrets ) {
     const config = {
-        accessToken : secrets.GITHUB_FG_ACCESS_TOKEN ?? null,
+        accessToken : secrets.GITHUB_FG_ACCESS_TOKEN,
         
         getAuthRequestHeader: (authHandler) => ({
             'Content-Type': 'application/x-www-form-urlencoded',

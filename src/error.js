@@ -51,6 +51,7 @@ function createTokenExpiredError( error = {}) {
             "Authentication token has expired. Please re-authenticate.",
         source: error?.source ?? {},
         context: error?.context ?? {},
+        meta: error?.meta ?? null,
     });
 }
 

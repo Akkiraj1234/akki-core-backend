@@ -171,50 +171,6 @@ class StaticAuthHandler {
 }
 
 
-class StaticAuthHandler {
-    constructor() {
-        this.accessToken = null;
-        this.getAuthRequestheader = null;
-    }
-
-    fromConfig({ accessToken, getAuthRequestheader,}) {
-        this.accessToken = accessToken ?? null;
-        this.getAuthRequestheader = getAuthRequestheader ?? null;
-    }
-
-    async handlePost(callable) {
-        if (!this.accessToken) {
-            return createResponse({
-                data: null,
-                error: buildError({
-                    base: {
-                        type: ERROR_TYPES.SERVICE_NOT_CONFIGURED, 
-                        message: "no access token was found"},
-                    errorMessage: "no access token found"
-                }),
-                code: null
-            });
-        }
-
-        const headers = this.getAuthRequestheader
-            ? this.getAuthRequestheader(this)
-            : {};
-
-        const res = await callable( headers );
-
-        if (res.error?.type === "UNAUTHORIZED" || res.error?.type === "FORBIDDEN") {
-            return createResponse({
-                data: null,
-                error: res.error,
-                code: res.code
-            });
-        }
-
-        return res;
-    }
-}
-
-
 
 module.exports = {
     AuthHandler,

@@ -1,7 +1,7 @@
 const { formatHeatmap, handleServiceError } = require("../utils");
 const { POST } = require("../infrastructure");
 const {
-    createConfigNotError,
+    createConfigNotFoundError,
     createMissingInputError
 } = require("../error");
 

@@ -1,9 +1,6 @@
 const { formatHeatmap, handleServiceError } = require("../utils");
 const { POST, GET, StaticAuthHandler } = require("../infrastructure");
-const {
-    createConfigNotError,
-    createMissingInputError
-} = require("../error");
+const { createConfigNotFoundError } = require("../error");
 
 const PROFILE_INFO_URL = `https://api.github.com/users`;
 const GITHUB_AUTH_HANDLER = new StaticAuthHandler();
@@ -30,9 +27,9 @@ const GITHUB_AUTH_HANDLER = new StaticAuthHandler();
  */
 function init( secrets ) {
     const config = {
-        accessToken : secrets.GITHUB_FG_ACCESS_TOKEN,
+        accessToken : secrets.GITHUB_FG_ACCESS_TOKEN ?? null,
         
-        getAuthRequestConfig: (authHandler) => ({
+        getAuthRequestHeader: (authHandler) => ({
             'Content-Type': 'application/x-www-form-urlencoded',
             'Authorization':`Bearer ${authHandler.accessToken}`,
             'Referer': 'https://github.com'
@@ -42,7 +39,9 @@ function init( secrets ) {
 }
 
 
-
+async function getGithubProfile({ ... }) {
+    
+}
 
 async function getGithubProfile({ ctx }) {
     const authHandler = ctx?.github?.getAuthConfig;

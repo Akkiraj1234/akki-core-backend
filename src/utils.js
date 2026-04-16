@@ -339,19 +339,28 @@ function getDataWithAddress(data, address) {
     return current ?? {};
 }
 
-async function runServices(worker_map) {
-    const { CONFIG } = require("./config");
+async function runServices(worker_map, { all = false } = {}) {
+    const { SECRET, CONFIG } = require("./config");
+
+    if (worker_map?.initFunc) worker_map.initFunc(SECRET);
+    
     const configuration = getDataWithAddress(
-        CONFIG, worker_map?.configKey ?? ""
-    )
+        CONFIG,
+        worker_map?.configKey ?? ""
+    );
 
-    const services = Object.values( worker_map.services || {} );
+    const services = Object.entries(worker_map.services || {});
+
     const data = await Promise.all(
-        services.map(({ callable }) => callable(configuration))
-    )
+        services.map(([service_name, { callable }]) =>
+            callable(configuration)
+                .then(res => ({ service_name, res }))
+        )
+    );
 
-    data.forEach((res) => {
-        console.log(JSON.stringify(res, null, 2));
+    data.forEach(({ service_name, res }, index) => {
+        console.log(`\n${index + 1}. Service [ ${service_name} ] --------------------------------`);
+        console.dir(res, { depth: null, colors: true });
     });
 }
 

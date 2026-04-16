@@ -94,6 +94,67 @@ function flattenGithubHeatmap(weeks = []) {
 }
 
 
+
+/**
+ * Normalizes raw GitHub event into a stable structure.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * ```js
+ * event: object
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Output:
+ * ```js
+ * {
+ *   id: string,
+ *   type: string,
+ *   createdAt: string,
+ *   public: boolean,
+ *   repo: {
+ *     name: string,
+ *     url: string
+ *   },
+ *   actor: {
+ *     username: string,
+ *     avatar: string
+ *   }
+ * } | null
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Behavior:
+ * - Extracts key fields from raw GitHub event
+ * - Normalizes nested repo and actor data
+ * - Returns null for invalid input
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * - Ignores non-object or null input
+ * - Defaults missing fields to null
+ * - No side effects
+ */
+function normalizeGithubEvent(event) {
+    if (!event || typeof event !== "object") return null;
+
+    return {
+        id: event.id ?? null,
+        type: event.type ?? null,
+        createdAt: event.created_at ?? null,
+        public: event.public ?? null,
+        repo: {
+            name: event.repo?.name ?? null,
+            url: event.repo?.url ?? null
+        },
+        actor: {
+            username: event.actor?.login ?? null,
+            avatar: event.actor?.avatar_url ?? null
+        }
+    };
+}
+
+
 /**
  * Fetches GitHub user profile data.
  *
@@ -260,58 +321,104 @@ async function fetchGithubHeatmap({ username }) {
 }
 
 
-// async function getGithubEvents() {
-//     const response = await GET({
-//         url: TIMELINE_URL,
-//         headers: getAuthHeaders()
-//     });
+/**
+ * Fetches recent GitHub events for a user.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * ```js
+ * { username: string }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Output (ServiceResponse):
+ * ```js
+ * {
+ *   data: {
+ *     event: Array<{
+ *       id: string,
+ *       type: string,
+ *       createdAt: string,
+ *       repo: {
+ *         name: string,
+ *         url: string
+ *       },
+ *       actor: {
+ *         username: string,
+ *         avatar: string
+ *       }
+ *     }>
+ *   },
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Errors:
+ * - SERVICE_NOT_CONFIGURED → init(secrets) not called / token missing
+ * - UNAUTHORIZED / FORBIDDEN → invalid or expired token
+ * - NOT_FOUND → invalid username or no events available
+ * - SERVICE_UNAVAILABLE → API/network failure
+ *
+ * ------------------------------------------------------------
+ * Behavior:
+ * - Fetches public user events via GitHub REST API
+ * - Normalizes each event using normalizeGithubEvent
+ * - Filters out invalid entries
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * - username is required
+ * - init(secrets) must be called before usage
+ * - relies on global GITHUB_AUTH_HANDLER
+ */
+async function getGithubEvents({ username }) {
 
-//     return handleServiceError({
-//         response,
-//         format: (data) => ({
-//             events: (data ?? []).map(normalizeGithubEvent).filter(Boolean)
-//         })
-//     });
-// }
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "getGithubEvents" 
+    });
 
-// function normalizeGithubEvent(event) {
-//     if (!event || typeof event !== "object") return null;
+    const response = await GITHUB_AUTH_HANDLER.handlePost(
+        async ( header ) => GET({
+            url: `${PROFILE_INFO_URL}/${username}/events`,
+            headers: header
+        })
+    );
 
-//     return {
-//         id: event.id ?? null,
-//         type: event.type ?? null,
-//         createdAt: event.created_at ?? null,
-//         repo: {
-//             name: event.repo?.name ?? null,
-//             url: event.repo?.url ?? null
-//         },
-//         actor: {
-//             username: event.actor?.login ?? null,
-//             avatar: event.actor?.avatar_url ?? null
-//         }
-//     };
-// }
+    return handleServiceError({
+        response,
+        format: (data) => (
+            (data ?? []).map(normalizeGithubEvent).filter(Boolean)
+        )
+    })
+}
+
 
 const worker_map = {
-    "GithubProfileData": {
-        callable: getGithubProfile,
-        key: "github.profile",
-        priority: "high",
-        next_run: 2 * 3600 * 1000
-    },
-    "GithubEventsData": {
-        callable: getGithubEvents,
-        key: "github.events",
-        priority: "medium",
-        next_run: 30 * 60 * 1000
-    },
-    "GithubHeatmapData": {
-        callable: fetchGithubHeatmap,
-        key: "github.heatmap",
-        priority: "high",
-        next_run: 30 * 60 * 1000
+    initFunc: init,
+    configKey: "services.github.config",
+    services: {
+        "GithubProfileData": {
+            callable: getGithubProfile,
+            key: "github.profile",
+            priority: "high",
+            next_run: 2 * 3600 * 1000
+        },
+        "GithubHeatmapData": {
+            callable: fetchGithubHeatmap,
+            key: "github.heatmap",
+            priority: "high",
+            next_run: 30 * 60 * 1000
+        },
+        "GithubEventsData": {
+            callable: getGithubEvents,
+            key: "github.events",
+            priority: "medium",
+            next_run: 12 * 3600 * 1000
+        }
     }
-};
+}
 
 
 module.exports = {
@@ -320,5 +427,6 @@ module.exports = {
 
 
 if (require.main === module) {
-    main()                                                                                                                                                 
+    const { runServices } = require("../utils")
+    runServices( worker_map )
 }

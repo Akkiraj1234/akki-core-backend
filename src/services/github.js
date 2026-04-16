@@ -421,12 +421,4 @@ const worker_map = {
 }
 
 
-module.exports = {
-    worker_map
-};
-
-
-if (require.main === module) {
-    const { runServices } = require("../utils")
-    runServices( worker_map )
-}
+                                                                                                                                                                                                                                                                                                                                                                                                   

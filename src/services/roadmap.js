@@ -135,12 +135,10 @@ function formatRoadmapdata(data) {
  * - delegates formatting to formatRoadmapdata
  */
 async function RoadmapProfileData({ username }) {
-    if (!username) {
-        return createMissingInputError({
-            field: "username",
-            service: "RoadmapProfileData"
-        });
-    }
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
 
     const response = await GET({
         url: `${PROFILEENDPOINT}/${username}`,
@@ -155,6 +153,7 @@ async function RoadmapProfileData({ username }) {
 
 
 const worker_map = {
+    initFunc: null,
     configKey: "services.roadmap.config",
     services: {
         "RoadmapProfileData": {

@@ -17,13 +17,9 @@
             }
         },
         "github": {
-            "account": {
-                "username": "Akkiraj1234"
-            },
-            "options": {
-                "heatmap": {
-                    "years": 10
-                }
+            "config":{
+                "username": "Akkiraj1234",
+                "lastNYears": 10
             }
         },
         "leetcode": {

@@ -39,7 +39,7 @@
 // which supppose to be followed by all function like httserrorHandler, graphqlErrorHandler, POST, GET etc.
 
 const { createResponse, sanitize } = require("../../utils.js");
-const { ERROR_TYPES } = require("./error.js");
+const { ERROR_TYPES } = require("../../error.js");
 const axios = require("axios");
 
 

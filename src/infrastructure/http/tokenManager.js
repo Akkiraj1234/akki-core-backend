@@ -4,7 +4,7 @@ const {
     ERROR_TYPES, 
     createTokenExpiredError, 
     createAuthHandlerNotConfiguredError
-} = require("./error.js");
+} = require("../../error.js");
 
 
 

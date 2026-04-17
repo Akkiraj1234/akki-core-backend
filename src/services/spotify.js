@@ -380,7 +380,7 @@ async function getUserPlaylists() {
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
 async function getRecentlyPlayed() {
-    const response = await spotifyAuthHandler.handlePost(
+    const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         async (accessToken) => {
             return await GET({
                 url: RECENTLY_PLAYED,
@@ -446,7 +446,7 @@ async function getRecentlyPlayed() {
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
 async function getTopTracks() {
-    const response = await spotifyAuthHandler.handlePost(
+    const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         async (token) => {
             return await GET({
                 url: TOP_TRACKS,
@@ -537,6 +537,8 @@ async function getTopArtists() {
         })
     });
 }
+
+
 const worker_map = {
     initFunc: init,
     configKey: "services.spotify.config",
@@ -580,6 +582,7 @@ const worker_map = {
     }
 }
 
+
 module.exports = {
     worker_map
 };
@@ -588,4 +591,4 @@ module.exports = {
 if (require.main === module) {
     const { runServices } = require("../utils")
     runServices( worker_map )
-}CSSKeyframeRule
+}

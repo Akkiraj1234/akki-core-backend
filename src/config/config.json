@@ -1,11 +1,12 @@
 {
     "services": {
         "spotify": {
-            "account": {
+            "config": {
                 "username": "Akki Raj",
                 "id": "ssiywg3v3lnc4z2wh7dv5clzu"
             },
             "options": {
+                "SPOTIFY_REDIRECT_URI": "http://127.0.0.1:3000/callback",
                 "show_dialog": false,
                 "scopes": [
                     "user-read-playback-state",

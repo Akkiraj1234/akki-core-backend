@@ -53,7 +53,7 @@ function init( secrets ) {
         clientId: secrets.SPOTIFY_CLIENT_ID,
         clientSecret: secrets.SPOTIFY_CLIENT_SECRET,
         TokenExchangeURL: TOKEN_URL,
-
+        
         getAuthRequestConfig: ( authHandler ) => {
             const headers = {
                 'Authorization': 'Basic ' + (
@@ -168,7 +168,7 @@ function getSongDataFromSpotifyItem(item) {
  * - init(secrets) must be called before usage
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
-async function getProfileInfo() {
+async function getProfileInfo({ ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         (accessToken) => GET({
             url: PROFILE_INFO,

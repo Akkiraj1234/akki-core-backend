@@ -15,8 +15,8 @@ import dotenv
 
 # ================= CONFIG =================
 
-ROOT_DIR = Path(__file__).resolve().parent
-CONFIG_DIR = ROOT_DIR / "src/config"
+ROOT_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = ROOT_DIR / "src" / "config"
 
 ENV_PATH = ROOT_DIR / "secret.env"
 CONFIG_PATH = CONFIG_DIR / "config.json"
@@ -31,21 +31,34 @@ DEFAULT_SCOPES = [
     "user-read-recently-played",
 ]
 
+print(ROOT_DIR,"\n",CONFIG_DIR,"\n",ENV_PATH,"\n",CONFIG_PATH)
+
+ALLOWED_ENV_KEYS = {
+    "SPOTIFY_CLIENT_ID",
+    "SPOTIFY_CLIENT_SECRET",
+    "SPOTIFY_AUTH_REFRESH_TOKEN",
+    "SPOTIFY_AUTH_ACCESS_TOKEN",
+    "GITHUB_FG_ACCESS_TOKEN",
+}
+
 
 def load_config() -> Dict[str, Any]:
     if not CONFIG_PATH.exists():
         return {}
     try:
-        return json.loads(CONFIG_PATH.read_text())
-    except:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
         return {}
 
 
 CONFIG = load_config()
-SPOTIFY_CONFIG = CONFIG.get("spotify", {}).get("options", {})
+SPOTIFY_CONFIG = CONFIG.get("services", {}).get("spotify", {}).get("options", {})
 SCOPES = SPOTIFY_CONFIG.get("scopes", DEFAULT_SCOPES)
-SPOTIFY_REDIRECT_URI = SPOTIFY_CONFIG.get("SPOTIFY_REDIRECT_URI", None)
+SPOTIFY_REDIRECT_URI = SPOTIFY_CONFIG.get("SPOTIFY_REDIRECT_URI")
 
+print(CONFIG)
+print("Scopes:", SCOPES)
+print("Redirect URI:", SPOTIFY_REDIRECT_URI)
 
 # ================= AUTH HANDLER =================
 
@@ -80,7 +93,7 @@ class SpotifyAuth:
         self.redirect_uri = SPOTIFY_REDIRECT_URI
 
         if not all([self.client_id, self.client_secret, self.redirect_uri]):
-            raise ValueError("Missing Spotify credentials")
+            raise ValueError("Missing Spotify credentials or redirect URI")
 
     def build_url(self, scopes: List[str]) -> str:
         params = {
@@ -105,7 +118,7 @@ class SpotifyAuth:
         server.handle_request()
 
         if CallbackHandler.error:
-            raise RuntimeError("Authorization failed")
+            raise RuntimeError(f"Authorization failed: {CallbackHandler.error}")
 
         if not CallbackHandler.code:
             raise RuntimeError("No code received")
@@ -137,32 +150,57 @@ class SpotifyAuth:
 
 # ================= STORAGE =================
 
-def save_env(creds: Dict[str, Any]):
-    lines = []
+def load_env_file() -> Dict[str, str]:
+    data: Dict[str, str] = {}
+
     if ENV_PATH.exists():
-        lines = ENV_PATH.read_text().splitlines()
-
-    data = {}
-    for line in lines:
-        if "=" in line:
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
             k, v = line.split("=", 1)
-            data[k] = v
+            data[k.strip()] = v.strip()
 
-    for k, v in creds.items():
-        key = f"SPOTIFY_{k.upper()}"
-        val = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
-        data[key] = val
+    return data
+
+
+def save_env(creds: Dict[str, Any]):
+    """
+    Saves only allowed keys into secret.env.
+    Keeps existing allowed keys already present in the file.
+    """
+    data = load_env_file()
+
+    # Keep only allowed keys from existing env
+    data = {k: v for k, v in data.items() if k in ALLOWED_ENV_KEYS}
+
+    # Update Spotify token values from creds
+    if "access_token" in creds:
+        data["SPOTIFY_AUTH_ACCESS_TOKEN"] = str(creds["access_token"])
+
+    if "refresh_token" in creds:
+        data["SPOTIFY_AUTH_REFRESH_TOKEN"] = str(creds["refresh_token"])
+
+    # Make sure parent directory exists just in case
+    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     content = "\n".join(f"{k}={v}" for k, v in data.items())
-    ENV_PATH.write_text(content)
+    ENV_PATH.write_text(content + ("\n" if content else ""), encoding="utf-8")
 
     print(f"💾 Saved to {ENV_PATH}")
 
 
 def save_json(creds: Dict[str, Any]):
+    """
+    Saves the JSON output inside src/config instead of the current working directory.
+    """
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
     name = f"spotify_{datetime.now().strftime('%H%M%S')}.json"
-    Path(name).write_text(json.dumps(creds, indent=2))
-    print(f"📁 Saved {name}")
+    file_path = CONFIG_DIR / name
+    file_path.write_text(json.dumps(creds, indent=2), encoding="utf-8")
+
+    print(f"📁 Saved {file_path}")
 
 
 # ================= CLI =================
@@ -182,27 +220,37 @@ class CLI:
     def run(self):
         while True:
             self.menu()
-            c = input("> ")
+            c = input("> ").strip()
 
             if c == "1":
                 print(self.scopes)
 
             elif c == "2":
-                s = input("scope: ")
+                s = input("scope: ").strip()
                 if s and s not in self.scopes:
                     self.scopes.append(s)
+                    print("✅ Added")
 
             elif c == "3":
                 print(self.scopes)
-                i = int(input("index: ")) - 1
-                if 0 <= i < len(self.scopes):
-                    self.scopes.pop(i)
+                try:
+                    i = int(input("index: ").strip()) - 1
+                    if 0 <= i < len(self.scopes):
+                        removed = self.scopes.pop(i)
+                        print(f"✅ Removed {removed}")
+                    else:
+                        print("❌ Invalid index")
+                except ValueError:
+                    print("❌ Please enter a valid number")
 
             elif c == "4":
                 self.login()
 
             elif c == "5":
                 break
+
+            else:
+                print("❌ Invalid option")
 
     def login(self):
         try:
@@ -223,14 +271,22 @@ class CLI:
             print("2. Save JSON")
             print("3. Back")
 
-            c = input("> ")
+            c = input("> ").strip()
 
             if c == "1":
-                save_env(self.creds)
+                if self.creds:
+                    save_env(self.creds)
+                else:
+                    print("❌ No credentials available")
             elif c == "2":
-                save_json(self.creds)
-            else:
+                if self.creds:
+                    save_json(self.creds)
+                else:
+                    print("❌ No credentials available")
+            elif c == "3":
                 break
+            else:
+                print("❌ Invalid option")
 
 
 # ================= ENTRY =================

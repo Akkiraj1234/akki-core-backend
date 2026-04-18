@@ -155,6 +155,7 @@ async function RoadmapProfileData({ username }) {
 const worker_map = {
     initFunc: null,
     configKey: "services.roadmap.config",
+    name: "Roadmap_Service",
     services: {
         "RoadmapProfileData": {
             callable: RoadmapProfileData,

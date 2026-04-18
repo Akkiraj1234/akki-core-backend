@@ -237,7 +237,7 @@ async function getProfileInfo({ ...args }) {
  * - init(secrets) must be called before usage
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
-async function getCurrentPlaying() {
+async function getCurrentPlaying({ ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         (accessToken) => GET({
             url: CURRENT_PLAYING,
@@ -309,7 +309,7 @@ async function getCurrentPlaying() {
  * - relies on global SPOTIFY_AUTH_HANDLER
  * - depends on CONFIG.spotify.id for owner filtering
  */
-async function getUserPlaylists() {
+async function getUserPlaylists({ id, ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         (accessToken) => GET({
             url: USER_PLAYLISTS,
@@ -322,7 +322,7 @@ async function getUserPlaylists() {
         format: (payload) => ({
             total: payload?.total ?? 0,
             playlists: (payload?.items ?? [])
-                .filter(p => p?.owner?.id === CONFIG?.spotify?.id)
+                .filter(p => p?.owner?.id === id)
                 .map(p => ({
                     name: p?.name ?? null,
                     description: p?.description ?? null,
@@ -379,17 +379,15 @@ async function getUserPlaylists() {
  * - init(secrets) must be called before usage
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
-async function getRecentlyPlayed() {
+async function getRecentlyPlayed({ recentlyPlayedLimit, ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
-        async (accessToken) => {
-            return await GET({
-                url: RECENTLY_PLAYED,
-                params: { limit: 5 },
-                headers: {
-                    Authorization: `Bearer ${accessToken}`
-                }
-            });
-        }
+        async (accessToken) => GET({
+            url: RECENTLY_PLAYED,
+            params: { limit: recentlyPlayedLimit },
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        })
     );
 
     return handleServiceError({
@@ -445,20 +443,18 @@ async function getRecentlyPlayed() {
  * - init(secrets) must be called before usage
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
-async function getTopTracks() {
+async function getTopTracks({ topTracksLimit, ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
-        async (token) => {
-            return await GET({
-                url: TOP_TRACKS,
-                params: {
-                    limit: 5,
-                    time_range: "short_term"
-                },
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-        }
+        async (accessToken) => GET({
+            url: TOP_TRACKS,
+            params: {
+                limit: topTracksLimit,
+                time_range: "short_term"
+            },
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        })
     );
 
     return handleServiceError({
@@ -514,12 +510,12 @@ async function getTopTracks() {
  * - init(secrets) must be called before usage
  * - relies on global SPOTIFY_AUTH_HANDLER
  */
-async function getTopArtists() {
+async function getTopArtists({ topArtistsLimit, ...args }) {
     const response = await SPOTIFY_AUTH_HANDLER.handlePost(
         (accessToken) => GET({
             url: TOP_ARTISTS,
             params: {
-                limit: 5,
+                limit: topArtistsLimit,
                 time_range: "short_term"
             },
             headers: { Authorization: `Bearer ${accessToken}` }

@@ -56,10 +56,6 @@ SPOTIFY_CONFIG = CONFIG.get("services", {}).get("spotify", {}).get("options", {}
 SCOPES = SPOTIFY_CONFIG.get("scopes", DEFAULT_SCOPES)
 SPOTIFY_REDIRECT_URI = SPOTIFY_CONFIG.get("SPOTIFY_REDIRECT_URI")
 
-print(CONFIG)
-print("Scopes:", SCOPES)
-print("Redirect URI:", SPOTIFY_REDIRECT_URI)
-
 # ================= AUTH HANDLER =================
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -258,8 +254,7 @@ class CLI:
             self.creds = asyncio.run(auth.run(self.scopes))
 
             print("✅ Success")
-            print(json.dumps(self.creds, indent=2))
-
+            
             self.post_actions()
 
         except Exception as e:

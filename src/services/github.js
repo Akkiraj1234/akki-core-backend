@@ -398,6 +398,7 @@ async function getGithubEvents({ username }) {
 const worker_map = {
     initFunc: init,
     configKey: "services.github.config",
+    name: "Github_Service",
     services: {
         "GithubProfileData": {
             callable: getGithubProfile,

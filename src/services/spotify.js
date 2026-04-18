@@ -538,6 +538,7 @@ async function getTopArtists({ topArtistsLimit, ...args }) {
 const worker_map = {
     initFunc: init,
     configKey: "services.spotify.config",
+    name: "Spotify_Service",
     services: {
         "SpotifyProfileInfo": {
             callable: getProfileInfo,

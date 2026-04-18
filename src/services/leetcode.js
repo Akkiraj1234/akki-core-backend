@@ -366,6 +366,7 @@ async function fetchLeetcodeHeatmap({ username, year = null }) {
 const worker_map = {
     initFunc: null,
     configKey: "services.leetcode.config",
+    name: "Leetcode_Service",
     services: {
         "LeetcodeProfileData": {
             callable: LeetcodeProfileData,

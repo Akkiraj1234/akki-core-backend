@@ -19,6 +19,10 @@ async function registerRoutes(app, deps = {}) {
         };
     });
 
+    app.get("/render_internal_health", async () => {
+        return {ok: true,};
+    });
+
     app.get("/state", { preHandler: protect }, async () => {
         return {
             ok: true,

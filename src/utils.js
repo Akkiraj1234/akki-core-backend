@@ -367,7 +367,14 @@ async function runServices(worker_map, { all = false } = {}) {
 const ChannelsID = {
     Orbit: "orbit_channel",
     Task: "task_channel",
-    Logger: "logger_channel"
+    Logger: "logger_channel",
+    DatBase: "database_channel",
+}
+
+const PRIORITY = {
+    low: 0.5,
+    medium: 1,
+    high: 2
 }
 
 module.exports = {
@@ -378,7 +385,8 @@ module.exports = {
     measureMemory,
     runServices,
     getDataWithAddress,
-    ChannelsID
+    ChannelsID,
+    PRIORITY
 };
 
 // 1. optimize formatHeatmap() 

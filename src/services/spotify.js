@@ -1,5 +1,5 @@
 const { POST, GET, AuthHandler } = require("../infrastructure");
-const { handleServiceError } = require("../utils");
+const { handleServiceError, PRIORITY } = require("../utils");
 const { createMissingInputError } = require("../error");
 
 
@@ -543,37 +543,37 @@ const worker_map = {
         "SpotifyProfileInfo": {
             callable: getProfileInfo,
             key: "spotify.profile_info",
-            priority: "high",
+            priority: PRIORITY.high,
             next_run: 6 * 3600 * 1000
         },
         "SpotifyCurrentPlaying": {
             callable: getCurrentPlaying,
             key: "spotify.current_playing",
-            priority: "high",
+            priority: PRIORITY.high,
             next_run: 15 * 1000 // can be 5 sec but to be safe keeping it 15 sec
         },
         "SpotifyUserPlaylists": {
             callable: getUserPlaylists,
             key: "spotify.user_playlists",
-            priority: "medium",
+            priority: PRIORITY.medium,
             next_run: 12 * 3600 * 1000
         },
         "SpotifyRecentlyPlayed": {
             callable: getRecentlyPlayed,
             key: "spotify.recently_played",
-            priority: "medium",
+            priority: PRIORITY.medium,
             next_run: 120 * 1000 // 5 min
         },
         "SpotifyTopTracks": {
             callable: getTopTracks,
             key: "spotify.top_tracks",
-            priority: "low",
+            priority: PRIORITY.low,
             next_run: 24 * 3600 * 1000
         },
         "SpotifyTopArtists": {
             callable: getTopArtists,
             key: "spotify.top_artists",
-            priority: "low",
+            priority: PRIORITY.low,
             next_run: 24 * 3600 * 1000
         }
     }

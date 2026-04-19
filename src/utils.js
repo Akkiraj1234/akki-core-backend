@@ -364,6 +364,12 @@ async function runServices(worker_map, { all = false } = {}) {
     });
 }
 
+const ChannelsID = {
+    Orbit: "orbit_channel",
+    Task: "task_channel",
+    Logger: "logger_channel"
+}
+
 module.exports = {
     sanitize,
     createResponse,
@@ -371,7 +377,8 @@ module.exports = {
     formatHeatmap,
     measureMemory,
     runServices,
-    getDataWithAddress
+    getDataWithAddress,
+    ChannelsID
 };
 
 // 1. optimize formatHeatmap() 

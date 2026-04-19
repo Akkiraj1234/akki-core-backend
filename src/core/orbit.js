@@ -28,30 +28,107 @@ FETCHER should return data in this format:
 return { data, error, code }; where they can use createResponse({ data, error, code }) from utils.js for standardization.
 ----------------------------------------------------
 */
+const { getDataWithAddress, ChannelsID } = require("../utils")
+const { logger, Channel } = require("../infrastructure");
+const { ServiceNotFoundError } = require("../error");
+const { SECRET, CONFIG } = require("../config");
+const { Task } = require("./task")
+const path = require("path");
+const fs = require("fs");
 
 
-class Task {
-    /*
-    need to have a global worker_map varaible conaing info in this format
-    worker_map = {
-        id : {callable, prioriy, nextrun:ms}
+// will pass src/services
+class Orbit {
+    constructor ({ servicePath }) {
+        this.servicePath = path.isAbsolute(servicePath)
+            ? servicePath
+            : path.resolve(__dirname, servicePath)
+        
+        this.channel = Channel()
+        this.Tasks = [];
     }
-    */
-    constructor ({cashReadOnly}) {
-        this.cashReadOnly = cashReadOnly;
-        this.error_info = {}
-    }
-    run() {
-        console.log(this.cashReadOnly);
+    
+    getServices() {
+        const stat = fs.statSync(this.servicePath);
+        if (!stat.isDirectory()) throw new ServiceNotFoundError(
+            `Invalid service path: "${this.servicePath}" is not a directory`
+        )
 
-        return 
+        const files = fs.readdirSync(this.servicePath);
+        const services = [];
+
+        for (const file of files) {
+            if (!file.endsWith(".js")) continue;
+
+            try {
+                const fullPath = path.join(this.servicePath, file);
+                const mod = require(fullPath);
+                if (mod?.worker_map) services.push(mod.worker_map);
+            }
+            catch (err) {
+                logger.error(`Failed to load service: ${file}`, err.message);
+            }
+        };
+        if (services.length === 0) {
+            throw new ServiceNotFoundError("No valid services found");
+        }
+        return services;
+    };
+
+    validateService( workerMap ) {
+        // report who did not loaded correctly
+        return (
+            workerMap &&
+            typeof workerMap.configKey === "string" &&
+            typeof workerMap.services === "object" && 
+            workerMap.services !== null
+        );
     }
 
-    hardRun() {
-        console.log("nothing have done here yrt please code!!")
+    buildTask() {
+        const workerTaskList = this.getServices()
+            .filter(this.validateService)
+
+        for (const { init, configKey, services, name } of workerTaskList){
+            if (init) init(SECRET);
+
+            const config = getDataWithAddress(
+                CONFIG,
+                configKey ?? ""
+            )
+            
+            const task = new Task(
+                { config, services, name, channel: this.channel }
+            );
+            this.Tasks.push(task);
+        }
     }
 
-    stop() {
-        console.log("log what?? code first bro :0 !!")
+    startTask() {
+        for (const task of this.Tasks) {
+            task.start();
+        }
     }
+
+    handleOrbitMessage( message ) {
+        // handle messages from tasks like failing, resolved, nextRunEstimate and more
+    }
+
+    start() {
+        this.channel.listen(
+            ChannelsID.Orbit, 
+            this.handleOrbitMessage
+        );
+
+        this.buildTask()
+        this.startTask()
+    }
+
+}
+
+
+if (require.main === module){
+    const servicePath = "../services"
+    const orbit = new Orbit({ servicePath })
+    orbit.start()
 }

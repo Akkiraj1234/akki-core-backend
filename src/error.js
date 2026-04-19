@@ -108,6 +108,13 @@ function createAuthHandlerNotConfiguredError({ handler = "AuthHandler", message 
     });
 }
 
+class ServiceNotFoundError extends Error {
+  constructor(message = "Service not found") {
+    super(message);
+    this.name = "ServiceNotFoundError";
+  }
+}
+
 module.exports = {
     ERROR_TYPES,
     createError,
@@ -115,5 +122,6 @@ module.exports = {
     createConfigNotFoundError,
     createMissingInputError,
     createServiceNotConfiguredError,
-    createAuthHandlerNotConfiguredError
+    createAuthHandlerNotConfiguredError,
+    ServiceNotFoundError
 };

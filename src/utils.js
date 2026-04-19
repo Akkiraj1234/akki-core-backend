@@ -370,7 +370,8 @@ module.exports = {
     handleServiceError,
     formatHeatmap,
     measureMemory,
-    runServices
+    runServices,
+    getDataWithAddress
 };
 
 // 1. optimize formatHeatmap() 

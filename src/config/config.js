@@ -6,7 +6,11 @@ const SECRET = {
   SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
   SPOTIFY_AUTH_REFRESH_TOKEN: process.env.SPOTIFY_AUTH_REFRESH_TOKEN,
   GITHUB_FG_ACCESS_TOKEN: process.env.GITHUB_FG_ACCESS_TOKEN,
+  AUTH_KEY: process.env.AUTH_KEY
 };
+
+
+// make it manual load secret fuck god.
 
 module.exports = {
   CONFIG,

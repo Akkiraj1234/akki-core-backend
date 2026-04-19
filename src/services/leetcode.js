@@ -371,13 +371,13 @@ const worker_map = {
         "LeetcodeProfileData": {
             callable: LeetcodeProfileData,
             key: "leetcode.profile",
-            priority: "high",
+            priority: PRIORITY.high,
             next_run: 2 * 3600 * 1000
         },
         "fetchLeetcodeHeatmapLastNYears": {
             callable: fetchLeetcodeHeatmapLastNYears,
             key: "leetcode.heatmap.history",
-            priority: "medium",
+            priority: PRIORITY.medium,
             next_run: 24 * 3600 * 1000
         },
     }

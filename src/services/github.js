@@ -403,19 +403,19 @@ const worker_map = {
         "GithubProfileData": {
             callable: getGithubProfile,
             key: "github.profile",
-            priority: "high",
+            priority: PRIORITY.high,
             next_run: 2 * 3600 * 1000
         },
         "GithubHeatmapData": {
             callable: fetchGithubHeatmap,
             key: "github.heatmap",
-            priority: "high",
+            priority: PRIORITY.high,
             next_run: 30 * 60 * 1000
         },
         "GithubEventsData": {
             callable: getGithubEvents,
             key: "github.events",
-            priority: "medium",
+            priority: PRIORITY.medium,
             next_run: 12 * 3600 * 1000
         }
     }

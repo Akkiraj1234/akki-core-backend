@@ -160,7 +160,7 @@ const worker_map = {
         "RoadmapProfileData": {
             callable: RoadmapProfileData,
             key: "roadmap.profile",
-            priority: "high", 
+            priority: PRIORITY.high, 
             next_run: 2 * 3600 * 1000
         }   
     }

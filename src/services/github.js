@@ -1,5 +1,5 @@
 const { POST, GET, StaticAuthHandler } = require("../infrastructure");
-const { formatHeatmap, handleServiceError } = require("../utils");
+const { formatHeatmap, handleServiceError, PRIORITY } = require("../utils");
 const { createMissingInputError } = require("../error");
 
 const GITHUB_AUTH_HANDLER = new StaticAuthHandler({

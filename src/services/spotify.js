@@ -550,7 +550,7 @@ const worker_map = {
             callable: getCurrentPlaying,
             key: "spotify.current_playing",
             priority: PRIORITY.high,
-            next_run: 15 * 1000 // can be 5 sec but to be safe keeping it 15 sec
+            next_run: 30 * 1000 // reduced polling pressure to avoid 429 spikes
         },
         "SpotifyUserPlaylists": {
             callable: getUserPlaylists,
@@ -562,7 +562,7 @@ const worker_map = {
             callable: getRecentlyPlayed,
             key: "spotify.recently_played",
             priority: PRIORITY.medium,
-            next_run: 120 * 1000 // 5 min
+            next_run: 5 * 60 * 1000 // 5 min
         },
         "SpotifyTopTracks": {
             callable: getTopTracks,

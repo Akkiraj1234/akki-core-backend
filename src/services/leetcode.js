@@ -1,4 +1,4 @@
-const { formatHeatmap, handleServiceError } = require("../utils");
+const { formatHeatmap, handleServiceError, PRIORITY } = require("../utils");
 const { POST } = require("../infrastructure");
 const {
     createConfigNotFoundError,

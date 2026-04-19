@@ -1,38 +1,48 @@
-const Fastify = require("fastify")
-
-async function health() {
-    return { ok: true }
-}
+const Fastify = require("fastify");
+const { logger } = require("../infrastructure");
+const { registerRoutes } = require("./routes");
 
 class Server {
-    constructor() {
-        this.app = Fastify()
-        this.port = 3000
-        this.host = "0.0.0.0"
+    constructor({
+        host = "0.0.0.0",
+        port = Number(process.env.PORT) || 3000,
+        databaseManager = null,
+        cacheManager = null
+    } = {}) {
+        this.host = host;
+        this.port = port;
+        this.databaseManager = databaseManager;
+        this.cacheManager = cacheManager;
 
-        this.initializeDirectory()
+        this.app = Fastify({ logger: false });
+        this.initializeRoutes();
     }
 
-    initializeDirectory() {
-        this.app.get("/health", health)
+    initializeRoutes() {
+        registerRoutes(this.app, {
+            databaseManager: this.databaseManager,
+            cacheManager: this.cacheManager
+        });
     }
 
     async start() {
-        await this.app.listen({ port: this.port, host: this.host })
-        console.log(`server running on port : ${this.port}`)
+        await this.app.listen({ port: this.port, host: this.host });
+        logger.info(`HTTP server running on ${this.host}:${this.port}`);
     }
 
     async close() {
-        console.log("closing server....")
-        await this.app.close()
+        await this.app.close();
+        logger.info("HTTP server closed");
     }
 
     async forceclose() {
-        console.log("closing forcibly")
         try {
-            await this.app.close()
-        } catch {}
+            await this.app.close();
+            logger.warn("HTTP server force closed");
+        } catch {
+            // no-op for toy-mode shutdown path
+        }
     }
 }
 
-module.exports = { Server }
+module.exports = { Server };

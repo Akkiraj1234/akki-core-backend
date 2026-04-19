@@ -44,7 +44,7 @@ class Orbit {
             ? servicePath
             : path.resolve(__dirname, servicePath)
         
-        this.channel = Channel()
+        this.channel = new Channel()
         this.Tasks = [];
     }
     
@@ -53,6 +53,9 @@ class Orbit {
         if (!stat.isDirectory()) throw new ServiceNotFoundError(
             `Invalid service path: "${this.servicePath}" is not a directory`
         )
+        if (!fs.existsSync(this.servicePath)) {
+            throw new ServiceNotFoundError(`Invalid path: ${this.servicePath}`);
+        }
 
         const files = fs.readdirSync(this.servicePath);
         const services = [];
@@ -87,10 +90,10 @@ class Orbit {
 
     buildTask() {
         const workerTaskList = this.getServices()
-            .filter(this.validateService)
+            .filter((wm) => this.validateService(wm))
 
-        for (const { init, configKey, services, name } of workerTaskList){
-            if (init) init(SECRET);
+        for (const { initFunc, configKey, services, name } of workerTaskList){
+            if (initFunc) initFunc(SECRET);
 
             const config = getDataWithAddress(
                 CONFIG,
@@ -117,7 +120,7 @@ class Orbit {
     start() {
         this.channel.listen(
             ChannelsID.Orbit, 
-            this.handleOrbitMessage
+            this.handleOrbitMessage.bind(this)
         );
 
         this.buildTask()
@@ -126,6 +129,9 @@ class Orbit {
 
 }
 
+module.exports = {
+    Orbit
+}
 
 if (require.main === module){
     const servicePath = "../services"

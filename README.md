@@ -81,6 +81,7 @@ npm start
 ```bash id="run2"
 pip -m venv .venv
 pip install -r requirements.txt
+npm install
 npm run tool
 ```
 

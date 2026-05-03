@@ -1,46 +1,47 @@
 # akki-core-backend
 
-akki-core-backend is a modular backend system for orchestrating data from multiple external services, providing normalized, cached, and API-ready outputs through a plug-and-play architecture.
+`akki-core-backend` is a modular data orchestration backend designed to continuously collect, normalize, and serve data from multiple external services through a unified API layer.
+
+Unlike traditional request-driven backends, this system is execution-driven: data is fetched, processed, and maintained proactively, and APIs serve the latest computed state.
+
+The system is designed as a **self-managing backend core**, where services are automatically discovered, scheduled, executed, and monitored as part of a centralized orchestration layer.
 
 ## Overview
 
-In simple terms, akhand.dev is a data orchestration backend built around four core parts:
+In simple terms, the system is built around four core parts:
 
-- Service (Fetcher Layer)  
-- Routes Layer  
-- Core + Infrastructure  
-- Observer  
+* Service (Fetcher Layer)
+* Core (Orbit + Task)
+* Infrastructure (HTTP, auth, messaging, logging)
+* Delivery (Storage + API layer)
 
 ## Plug-and-Play Design
 
-- Services (Fetcher Layer) and Routes are fully plug-and-play  
-- Each service or route is file-based and auto-loaded  
-- New features can be added without modifying core logic  
+* Services (fetcher layer) are file-based and auto-loaded
+* Each service defines its own fetchers and scheduling logic
+* New services can be added without modifying core logic
 
 ## What it does
 
-- Fetches data from external services (GitHub, LeetCode, Spotify, etc.)
-- Normalizes responses into a consistent format
-- Executes tasks through a controlled scheduling system
-- Stores results in cache for fast and reliable access
-- Exposes data via APIs or real-time connections (WebSocket)
-- Dynamically manages resources by prioritizing critical tasks and reducing non-essential workloads
-- Monitors system behavior and reports errors intelligently (acts as a self-observing system)
+* Fetches data from external services (GitHub, LeetCode, Spotify, etc.)
+* Normalizes responses into a consistent internal format
+* Executes tasks through a controlled scheduling system
+* Caches and stores the latest results in memory
+* Exposes structured data via protected APIs
+* Provides a foundation for monitoring, error propagation, and adaptive scheduling
 
 ## Used In
 
-- [akhand.dev](https://akhand.dev)  
-- Snake game (multiplayer backend)  
-- LeetCode automation / solver  
-- Discord bot integrations  
+* [akhand.dev](https://akhand.dev)
+* Personal data aggregation and automation workflows
 
 ## More
 
 For detailed information:
 
-- [Documentation](./docs/intro.md)  
-- [Architecture](./docs/architecture.md)  
-- [TODO / Roadmap](./todo.md)  
+* [Documentation](./docs/intro.md)
+* [Architecture](./docs/architecture.md)
+* [TODO / Roadmap](./todo.md)
 
 ## Run
 
@@ -63,4 +64,5 @@ npm run tool
 
 Source available for educational viewing only.
 Reuse, modification, or redistribution is not permitted.
+
 [Read License](./License.md)

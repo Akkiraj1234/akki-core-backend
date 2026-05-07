@@ -143,9 +143,9 @@ function getData(stats = []) {
  * ```js
  * {
  *   data: {
- *     username: string,
- *     solved: { easy, medium, hard },
- *     total:  { easy, medium, hard }
+ *     username: string,                                | Things i need 
+ *     solved: { easy, medium, hard },                  | 1. profile url, avatar. bio
+ *     total:  { easy, medium, hard }                   | 2. followers, following, total solution , total views
  *   },
  *   error,
  *   code

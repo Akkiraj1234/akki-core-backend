@@ -14,7 +14,7 @@ Initial version of routes provided by `api.akhand.dev`.
 3. [Available Routes](#available-routes)
 4. [GitHub Profile Data](#github-profile-data)
    1. [Profile Data](#profile-data)
-   2. [Roadmap Data](#roadmap-data)
+   2. [Heatmap Data](#heatmap-data)
    3. [Other](#other)
 
 
@@ -177,7 +177,7 @@ GET /roadmap_profile_data
 #### Endpoint
 
 ```http
-GET /roadmap_profile_data
+GET /spotify_profile_data
 ```
 
 #### Query Parameters
@@ -186,6 +186,245 @@ GET /roadmap_profile_data
 |------------|------|-----------|-------------|
 | `version` | string | Yes | Client-side stored server version used for diff comparison |
 
+```json
+{
+  "data": {
+    "username": "string",
+    "avatar": "string",
+    "profileUrl": "string",
+    "followers": 0,
+    "playlist": 0,
+  }
+}
+```
 
 
-## Other
+#### Notes
+
+- Response follows the shared [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Heatmap Data
+
+1. [Combined Heatmap Data](#combined-heatmap-data)
+2. [LeetCode Heatmap Data](#leetcode-heatmap-data)
+3. [Roadmap Heatmap Data](#roadmap-heatmap-data)
+4. [github Heatmap Data](#github-Heatmap-Data)
+
+
+### Combined Heatmap Data
+
+#### Endpoint
+
+```http
+GET /combined_heatmap_data
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|------------|------|-----------|-------------|
+| `version` | string | Yes | Client-side stored server version used for diff comparison |
+
+#### Response Shape
+
+```json
+{
+  "Github": {
+    "activeYears":  [2000],
+    "calendar": {
+      "years": {
+        "2000": {
+          "heatmap": [{"date": 72873893793, "count": 2}],
+          "currentStreak": 1,
+          "longestStreak": 1, 
+          "totalActiveDays": 1,
+          "totalContributions": 1
+        }
+      },
+      "global": {
+        "currentStreak": 1,
+        "longestStreak": 1, 
+        "totalActiveDays": 1,
+        "totalContributions": 1
+      },
+    }
+  },
+  "leetcode": {
+    "activeYears":  [2000],
+    "calendar": {
+      "years": {
+        "2000": {
+          "heatmap": [{"date": 72873893793, "count": 2}],
+          "currentStreak": 1,
+          "longestStreak": 1, 
+          "totalActiveDays": 1,
+          "totalContributions": 1
+        }
+      },
+      "global": {
+        "currentStreak": 1,
+        "longestStreak": 1, 
+        "totalActiveDays": 1,
+        "totalContributions": 1s
+      },
+    }
+  }
+}
+```
+
+#### Notes
+
+- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+
+### LeetCode Heatmap Data
+
+#### Endpoint
+
+```http
+GET /leetcode_heatmap_data
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|------------|------|-----------|-------------|
+| `version` | string | Yes | Client-side stored server version used for diff comparison |
+
+#### Response Shape
+
+```json
+{
+  "activeYears":  [2000],
+  "calendar": {
+    "years": {
+      "2000": {
+        "heatmap": [{"date": 72873893793, "count": 2}],
+        "currentStreak": 1,
+        "longestStreak": 1, 
+        "totalActiveDays": 1,
+        "totalContributions": 1
+      }
+    },
+    "global": {
+      "currentStreak": 1,
+      "longestStreak": 1, 
+      "totalActiveDays": 1,
+      "totalContributions": 1
+    },
+  }
+}
+```
+
+#### Notes
+
+- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+
+### Roadmap Heatmap Data
+
+#### Endpoint
+
+```http
+GET /roadmap_heatmap_data
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|------------|------|-----------|-------------|
+| `version` | string | Yes | Client-side stored server version used for diff comparison |
+
+#### Response Shape
+
+```json
+{
+  "activeYears":  [2000],
+  "calendar": {
+    "years": {
+      "2000": {
+        "heatmap": [{"date": 72873893793, "count": 2}],
+        "currentStreak": 1,
+        "longestStreak": 1, 
+        "totalActiveDays": 1,
+        "totalContributions": 1
+      }
+    },
+    "global": {
+      "currentStreak": 1,
+      "longestStreak": 1, 
+      "totalActiveDays": 1,
+      "totalContributions": 1
+    },
+  }
+}
+```
+
+#### Notes
+
+- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+
+### Github Heatmap Data
+
+#### Endpoint
+
+```http
+GET /github_heatmap_data
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|------------|------|-----------|-------------|
+| `version` | string | Yes | Client-side stored server version used for diff comparison |
+
+#### Response Shape
+
+```json
+{
+  "activeYears":  [2000],
+  "calendar": {
+    "years": {
+      "2000": {
+        "heatmap": [{"date": 72873893793, "count": 2}],
+        "currentStreak": 1,
+        "longestStreak": 1, 
+        "totalActiveDays": 1,
+        "totalContributions": 1
+      }
+    },
+    "global": {
+      "currentStreak": 1,
+      "longestStreak": 1, 
+      "totalActiveDays": 1,
+      "totalContributions": 1
+    },
+  }
+}
+```
+
+#### Notes
+
+- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+

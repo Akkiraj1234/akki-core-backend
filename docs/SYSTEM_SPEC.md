@@ -15,3 +15,6 @@ for any profile data these fields are mandatory to have
 
 a profile filed should contain these details
 
+
+### Heatmap Data
+

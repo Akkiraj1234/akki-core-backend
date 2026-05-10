@@ -334,21 +334,19 @@ async function fetchGithubHeatmap({ username }) {
  * Output (ServiceResponse):
  * ```js
  * {
- *   data: {
- *     event: Array<{
- *       id: string,
- *       type: string,
- *       createdAt: string,
- *       repo: {
- *         name: string,
- *         url: string
- *       },
- *       actor: {
- *         username: string,
- *         avatar: string
- *       }
- *     }>
- *   },
+ *   data: Array<{
+ *     id: string,
+ *     type: string,
+ *     createdAt: string,
+ *     repo: {
+ *       name: string,
+ *       url: string
+ *     },
+ *     actor: {
+ *       username: string,
+ *       avatar: string
+ *     }
+ *   }>,
  *   error,
  *   code
  * }

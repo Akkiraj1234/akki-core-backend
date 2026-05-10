@@ -29,7 +29,9 @@
         "leetcode": {
             "config": {
                 "username": "akhand_raj",
-                "lastNYears": 10
+                "lastNYears": 10,
+                "skip": 0,
+                "first": 20
             }
         },
         "roadmap": {

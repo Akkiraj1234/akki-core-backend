@@ -1,5 +1,5 @@
 const { formatHeatmap, handleServiceError, PRIORITY } = require("../utils");
-const { POST } = require("../infrastructure");
+const { POST, GET } = require("../infrastructure");
 const {
     createConfigNotFoundError,
     createMissingInputError
@@ -231,6 +231,66 @@ async function LeetcodeProfileData({ username }) {
 }
 
 
+/**
+ * Fetches normalized LeetCode submission statistics.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * { username: string }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: {
+ *     username: string,
+ *
+ *     submission: {
+ *       solved: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       failed: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       untouched: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       total: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       }
+ *     },
+ *
+ *     languageProblemCount: [
+ *       {
+ *         languageName: string,
+ *         problemsSolved: number
+ *       }
+ *     ]
+ *   },
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - missing values default to 0
+ * - invalid difficulty entries are ignored safely
+ * - response is normalized for frontend usage
+ * - uses POST + handleServiceError
+ */
 async function LeetcodeSubmissionData({ username }) {
     
     // OLD SYSTEM TO RETRIEVE DATA
@@ -383,6 +443,95 @@ async function fetchLeetcodeHeatmapLastNYears({ username, lastNYears = 10, baseY
     });
 }
 
+
+/**
+ * Fetches recent public LeetCode solution articles.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * {
+ *   username: string,
+ *   skip?: number,
+ *   first?: number
+ * }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: [
+ *     {
+ *       title: string,
+ *       createdAt: string | null,
+ *       url: string
+ *     }
+ *   ],
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - skip defaults to 0
+ * - first defaults to 20
+ * - missing values are normalized safely
+ * - returns only public solution articles
+ * - generates direct LeetCode solution URLs
+ * - uses POST + handleServiceError
+ */
+async function LeetcodeRecentSolution({ username, skip = 0, first = 20 }) {
+    const query = `
+    query userSolutionArticles( 
+        $username: String!, 
+        $skip: Int!, 
+        $first: Int!
+    ) {
+        ugcArticleUserSolutionArticles(
+            username: $username, 
+            skip: $skip, 
+            first: $first 
+        ) {
+            edges { 
+                node {
+                    title
+                    createdAt
+                    slug
+                    questionSlug
+                    topicId
+                }
+            }
+        }
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response,
+        format: ( data ) => {
+            const payload = data?.data;
+            const edges = payload?.ugcArticleUserSolutionArticles?.edges ?? [];
+
+            return edges.map(({node}) => ({
+                title: node?.title ?? "",
+                createdAt: node?.createdAt ?? null,
+                url: 
+                    `https://leetcode.com/problems/${node?.questionSlug}` +
+                    `/solutions/${node?.topicId}/${node?.slug}`
+            }));
+        }
+    });
+}
+
 /**
  * @deprecated
  *
@@ -513,6 +662,13 @@ const worker_map = {
             priority: PRIORITY.medium,
             next_run: 24 * 3600 * 1000
         },
+        "LeetcodeRecentSolution": {
+            callable: LeetcodeRecentSolution,
+            key: "leetcode.recentsolution",
+            priority: PRIORITY.medium,
+            next_run: 24 * 3600 * 1000
+        },
+        
     }
 }
 
@@ -526,3 +682,10 @@ if (require.main === module) {
     const { runServices } = require("../utils")
     runServices( worker_map )
 }
+
+// Resent submission data
+// {"query":"\n    query recentAcSubmissions($username: String!, $limit: Int!) {\n  recentAcSubmissionList(username: $username, limit: $limit) {\n    id\n    title\n    titleSlug\n    timestamp\n  }\n}\n    ","variables":{"username":"akhand_raj","limit":15},"operationName":"recentAcSubmissions"}
+
+// tags and skills set
+// {"query":"\n    query skillStats($username: String!) {\n  matchedUser(username: $username) {\n    tagProblemCounts {\n      advanced {\n        tagName\n        tagSlug\n        problemsSolved\n      }\n      intermediate {\n        tagName\n        tagSlug\n        problemsSolved\n      }\n      fundamental {\n        tagName\n        tagSlug\n        problemsSolved\n      }\n    }\n  }\n}\n    ","variables":{"username":"akhand_raj"},"operationName":"skillStats"}
+

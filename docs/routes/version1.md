@@ -2,8 +2,7 @@
 
 > **Author** : Akhand Raj  
 > **GitHub** : [@Akkiraj1234](https://github.com/Akkiraj1234)  
-> **Date**   : 1 Aug 2025  
-> **Status** : Completed
+> **Date**   : 8 may 2026 (on-going)
 
 Initial version of routes provided by `api.akhand.dev`.
 
@@ -24,6 +23,8 @@ Initial version of routes provided by `api.akhand.dev`.
 6. Routes
    1. [Profile Data Routes](#profile-data-routes)
    2. [Heatmap Data Routes](#heatmap-data-routes)
+   3. [Spotify Data Routes](#spotify-data-routes)
+   4. [Other Data Routes](#other-data-routes)
 
 ---
 
@@ -136,10 +137,14 @@ GET /profile/leetcode
     "profileUrl": "string",
     "avatar": "string",
     "bio": "string",
-    "totalSolutions": 0,
     "totalViews": 0,
+    "ranking": 0,
+    "reputation": 0,
+    "starRating": 0,
+    "contestBadge": [ ... ],
     "followers": 0,
-    "following": 0
+    "following": 0,
+    "totalSolutions": 0,
   }
 }
 ```
@@ -428,5 +433,342 @@ GET /heatmap/roadmap
 ### Notes
 
 - Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+# Spotify Data Routes
+
+## Available Routes
+
+1. [Profile Data](#spotify-profile-data)
+2. [Current Playing](#spotify-current-playing)
+3. [Recent Played](#spotify-recent-played)
+4. [Playlists](#spotify-playlists)
+5. [TopTracks](#spotify-top-tracks)
+6. [TopArtists](#spotify-top-artists)
+
+---
+
+## Spotify Current Playing
+
+### Endpoint
+
+```http
+GET /spotify/current_playing
+```
+
+### Response Shape
+
+```json
+{
+  is_playing: boolean,
+  track: {
+    title: string,
+    artist: Array<{ name: string, url: string }>,
+    cover: Array<object>,
+    url: string
+  } | null,
+  progress: {
+    current: number,
+    duration: number
+  }
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Spotify Recent Played
+
+### Endpoint
+
+```http
+GET /spotify/recent_played
+```
+
+### Response Shape
+
+```js
+{
+  tracks: Array<{
+    title: string,
+    artist: Array<{ name: string, url: string }>,
+    cover: Array<object>,
+    url: string
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Spotify Playlists
+
+### Endpoint
+
+```http
+GET /spotify/playlists
+```
+
+### Response Shape
+
+ ```js
+ {
+  total: number,
+  playlists: Array<{
+    id: string,
+    name: string,
+    description: string,
+    url: string,
+    cover: Array<object>
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Spotify TopTracks
+
+### Endpoint
+
+```http
+GET /spotify/top-tracks
+```
+
+### Response Shape
+
+```js
+{
+  tracks: Array<{
+    title: string,
+    artist: Array<{ name: string, url: string }>,
+    cover: Array<object>,
+    url: string
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Spotify TopTracks
+
+### Endpoint
+
+```http
+GET /spotify/top-tracks
+```
+
+### Response Shape
+
+```js
+{
+  tracks: Array<{
+    title: string,
+    artist: Array<{ name: string, url: string }>,
+    cover: Array<object>,
+    url: string
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Spotify TopArtists
+
+### Endpoint
+
+```http
+GET /spotify/top-artists
+```
+
+### Response Shape
+
+```js
+{
+  tracks: Array<{
+    title: string,
+    artist: Array<{ name: string, url: string }>,
+    cover: Array<object>,
+    url: string
+  }>
+},
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+# Other Data Routes
+
+## Available Routes
+
+1. [Github Events](#github-event-data)
+2. [Roadmap.sh Roadmap List](#roadmapsh-roadmap-list)
+3. [Leetcode Submission Data]()
+
+---
+
+## Github Event Data
+
+### Endpoint
+
+```http
+GET /github/github-event
+```
+
+### Response Shape
+
+```js
+{
+  Array<{
+    id: string,
+    type: string,
+    createdAt: string,
+    repo: {
+      name: string,
+      url: string
+    },
+    actor: {
+      username: string,
+      avatar: string
+    }
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Roadmap.sh Roadmap List
+
+### Endpoint
+
+```http
+GET /roadmap/roadmap-list
+```
+
+### Response Shape
+
+```js
+{
+  Array<{
+    title: 'C++',
+    id: 'cpp',
+    done: 0,
+    skipped: 0,
+    learning: 0,
+    total: 127,
+    updatedAt: '2025-08-17T16:12:46.362Z',
+    isCustomResource: false,
+    roadmapSlug: ''
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+## Roadmap.sh Roadmap List
+
+### Endpoint
+
+```http
+GET /roadmap/roadmap-list
+```
+
+### Response Shape
+
+```js
+{
+  Array<{
+    title: 'C++',
+    id: 'cpp',
+    done: 0,
+    skipped: 0,
+    learning: 0,
+    total: 127,
+    updatedAt: '2025-08-17T16:12:46.362Z',
+    isCustomResource: false,
+    roadmapSlug: ''
+  }>
+}
+```
+
+### Notes
+
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+# Leetcode Submission Data
+
+## Endpoint
+
+```http
+GET /leetcode/submission-data
+```
+
+## Response
+
+```json
+{
+  "username": "string",
+
+  "submission": {
+    "solved": { "easy": 0, "medium": 0, "hard": 0},
+    "failed": { "easy": 0, "medium": 0, "hard": 0},
+    "untouched": { "easy": 0, "medium": 0, "hard": 0},
+    "total": { "easy": 0, "medium": 0, "hard": 0},
+  },
+
+  "languageProblemCount": [
+    {
+      "languageName": "string",
+      "problemsSolved": 0
+    }
+  ]
+}
+```
+
+## Notes
+
+- Missing values default to `0`
 - Supports diff-based incremental updates
 - Clients should always store the latest returned server version

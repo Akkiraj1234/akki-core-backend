@@ -114,21 +114,21 @@ function combineHeatmaps(years = [], matchedUser = {}) {
  * - defaults missing values to 0
  */
 function getData(stats = []) {
-    
+
     const output = { easy: 0, medium: 0, hard: 0 };
 
     for (const item of stats) {
+
         const { difficulty, count } = item ?? {};
         if (!difficulty) continue;
-        output[difficulty] = count;
+        const key = difficulty.toLowerCase();
+        if (key in output) {
+            output[key] = count ?? 0;
+        }
     }
 
-    return {
-        easy: output["Easy"] || 0,
-        medium: output["Medium"] || 0,
-        hard: output["Hard"] || 0
-    }
-};
+    return output;
+}
 
 /**
  * Fetches LeetCode stats (solved vs total by difficulty).
@@ -143,9 +143,17 @@ function getData(stats = []) {
  * ```js
  * {
  *   data: {
- *     username: string,                                | Things i need 
- *     solved: { easy, medium, hard },                  | 1. profile url, avatar. bio
- *     total:  { easy, medium, hard }                   | 2. followers, following, total solution , total views
+ *     username: string,
+ *     profileUrl: string,
+ *     avatar: string,
+ *     bio: string,
+ *     totalViews: number,
+ *     ranking: number,
+ *     reputation: number,
+ *     starRating: number,
+ *     contestBadge: any,
+ *     followers: number,
+ *     following: number
  *   },
  *   error,
  *   code
@@ -161,12 +169,30 @@ async function LeetcodeProfileData({ username }) {
 
     const query = `
     query getUserProfile($username: String!) {
-        matchedUser(username: $username){ 
-            submitStats{
-                acSubmissionNum { difficulty count }
+        matchedUser(username: $username) { 
+
+            contestBadge{
+                name
+                expired,
+                hoverText,
+                icon
+            }
+            profile {
+                userAvatar
+                aboutMe
+                ranking
+                reputation
+                starRating
+                postViewCount
             }
         }
-        allQuestionsCount {difficulty count}
+        
+        followers(userSlug: $username) {
+            allNum
+        }
+        following(userSlug: $username) {
+            allNum
+        }
     }`;
     
     if (!username) return createMissingInputError({ 
@@ -183,11 +209,112 @@ async function LeetcodeProfileData({ username }) {
         response,
         format: (data) => {
             const payload = data?.data;
+            const matchedUser = payload?.matchedUser;
+            const profileData = matchedUser?.profile
 
             return {
                 username,
-                solved: getData(payload?.matchedUser?.submitStats?.acSubmissionNum),
-                total: getData(payload?.allQuestionsCount)
+                profileUrl: `https://leetcode.com/u/${username}/`,
+                avatar: profileData?.userAvatar ?? "",
+                bio: profileData?.aboutMe ?? "",
+                totalViews: profileData?.postViewCount ?? 0,
+                ranking: profileData?.ranking ?? 0,
+                reputation: profileData?.reputation ?? 0,
+                starRating: profileData?.starRating ?? 0,
+                contestBadge: matchedUser?.contestBadge ?? null,
+                followers: payload?.followers?.allNum ?? 0,
+                following: payload?.following?.allNum ?? 0
+            }
+
+        }
+    });
+}
+
+
+async function LeetcodeSubmissionData({ username }) {
+    
+    // OLD SYSTEM TO RETRIEVE DATA
+    // const query = `
+    // query getUserProfile($username: String!) {
+    //     matchedUser(username: $username) {
+    //         username,
+
+    //         submitStats{
+    //             acSubmissionNum { 
+    //                 difficulty 
+    //                 count 
+    //             }
+    //         }
+
+    //     }
+    //     languageProblemCount {
+    //         languageName
+    //         problemsSolved
+    //     }
+    //     allQuestionsCount {
+    //         difficulty 
+    //         count
+    //     }
+    // }`
+
+    const query = `
+    query getUserProfile($username: String!) {
+
+        userProfileUserQuestionProgressV2(userSlug: $username){
+            numAcceptedQuestions {
+                count
+                difficulty
+            }
+            numFailedQuestions {
+                count
+                difficulty
+            }
+            numUntouchedQuestions {
+                count
+                difficulty
+            }
+        }
+        
+        allQuestionsCount {
+            difficulty 
+            count
+        }
+
+        matchedUser(username: $username){
+            languageProblemCount {
+                languageName
+                problemsSolved
+
+            }
+        }
+
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response,
+        format: (data) => {
+            const payload = data?.data;
+            const submissionV2 = payload?.userProfileUserQuestionProgressV2
+
+            return {
+                username,
+                submission: {
+                    solved: getData(submissionV2?.numAcceptedQuestions ?? {}),
+                    failed: getData(submissionV2?.numFailedQuestions ?? {}),
+                    untouched: getData(submissionV2?.numUntouchedQuestions ?? {}),
+                    total: getData(payload?.allQuestionsCount ?? {})
+                },
+                languageProblemCount: payload?.matchedUser?.languageProblemCount ?? []
             }
 
         }
@@ -374,6 +501,12 @@ const worker_map = {
             priority: PRIORITY.high,
             next_run: 2 * 3600 * 1000
         },
+        "LeetcodeSubmissionData": {
+            callable: LeetcodeSubmissionData,
+            key: "leetcode.submissiondata",
+            priority: PRIORITY.high,
+            next_run: 2 * 3600 * 1000
+        },
         "fetchLeetcodeHeatmapLastNYears": {
             callable: fetchLeetcodeHeatmapLastNYears,
             key: "leetcode.heatmap.history",
@@ -383,9 +516,11 @@ const worker_map = {
     }
 }
 
+
 module.exports = {
     worker_map
 }
+
 
 if (require.main === module) {
     const { runServices } = require("../utils")

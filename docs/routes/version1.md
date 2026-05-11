@@ -1,101 +1,162 @@
-# API v1 Routes
+# API v1 Documentation
 
-> **Author** : Akhand Raj  
-> **GitHub** : [@Akkiraj1234](https://github.com/Akkiraj1234)  
-> **Date**   : 8 may 2026 (on-going)
+This document describes the `v1` API exposed by `api.akhand.dev`, with a focus on what the client receives, how version-based updates work, and the response shape of each route.
 
-Initial version of routes provided by `api.akhand.dev`.
+## Base URL
 
-> [!IMPORTANT]
->
-> **Base URL**  
-> `https://api.akhand.dev/v1`
-
----
-
-# Table of Contents
-
-1. [Overview](#overview)
-2. [Common Response Behavior](#common-response-behavior)
-3. [Common Query Parameters](#common-query-parameters)
-4. [Common Status Codes](#common-status-codes)
-5. [Shared Specifications](#shared-specifications)
-6. Routes
-   1. [Profile Data Routes](#profile-data-routes)
-   2. [Heatmap Data Routes](#heatmap-data-routes)
-   3. [Spotify Data Routes](#spotify-data-routes)
-   4. [Other Data Routes](#other-data-routes)
-
----
-
-# Overview
-
-All `v1` routes follow a shared response, versioning, and diff-based update pattern.
-
-The API is designed to reduce unnecessary payload transfers by supporting incremental updates using client-side version tracking.
-
----
-
-# Common Response Behavior
-
-Responses may return either:
-
-- Full payload data
-- Incremental diff payloads
-
-depending on the provided client version state.
-
----
-
-# Common Query Parameters
-
-| Parameter | Type | Required | Description |
-|------------|------|-----------|-------------|
-| `version` | string | Yes | Client-side stored server version used for diff comparison |
-
----
-
-# Common Status Codes
-
-| Status Code | Meaning | Response |
-|--------------|----------|----------|
-| `200` | Request successful | JSON |
-| `204` | No changes detected | Empty |
-| `400` | Missing or invalid request parameters | Empty |
-| `429` | Rate limit exceeded | Empty |
-| `500` | Internal server error | Empty |
-
----
-
-# Shared Specifications
-
-| Specification | Description |
-|---------------|-------------|
-| [Profile Data Spec](../SYSTEM_SPEC.md#profile-data) | Shared structure for profile-related routes |
-| [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data) | Shared structure for heatmap-related routes |
-
----
-
-# Profile Data Routes
-
-## Available Routes
-
-1. [GitHub Profile Data](#github-profile-data)
-2. [LeetCode Profile Data](#leetcode-profile-data)
-3. [Roadmap.sh Profile Data](#roadmapsh-profile-data)
-4. [Spotify Profile Data](#spotify-profile-data)
-
----
-
-## GitHub Profile Data
-
-### Endpoint
-
-```http
-GET /profile/github
+```txt
+https://api.akhand.dev/v1
 ```
 
-### Response Shape
+## Table of Contents
+
+1. [Overview](#overview)
+2. [How Version 1 Works](#how-version-1-works)
+3. [Common Request Rules](#common-request-rules)
+4. [Common Response Behavior](#common-response-behavior)
+5. [Common Status Codes](#common-status-codes)
+6. [Route Index](#route-index)
+7. [Profile Routes](#profile-routes)
+8. [Heatmap Routes](#heatmap-routes)
+9. [Spotify Routes](#spotify-routes)
+10. [Other Routes](#other-routes)
+
+---
+
+## Overview
+
+Version 1 is a read-focused API that serves profile, activity, and media data gathered from multiple services such as GitHub, LeetCode, roadmap.sh, and Spotify.
+
+The API is designed to help clients avoid downloading unchanged data repeatedly. To support this, `v1` uses a version-aware response model.
+
+## How Version 1 Works
+
+The client sends its last known server version using the `version` query parameter.
+
+Based on that version, the server may return:
+
+1. A full payload when the client has no usable local version.
+2. Updated data when the server has newer content.
+3. `204 No Content` when the client is already up to date.
+
+### Recommended Client Flow
+
+1. Call a route with the last stored `version`.
+2. If the response is `200`, update local state with the returned payload.
+3. Store the newest server version for the next sync.
+4. If the response is `204`, keep the current local data.
+
+### Example
+
+```http
+GET /v1/profile/github?version=1715523000000
+```
+
+If data has changed, the client receives a `200` response with the route payload. If nothing has changed, the client receives `204 No Content`.
+
+---
+
+## Common Request Rules
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `version` | `string` | Yes | Client-side version used to check whether new data is available. |
+
+### Notes
+
+- All routes documented here are `GET` routes.
+- Clients should treat `version` as an opaque server-generated value.
+- Clients should always store the latest version returned by the API flow.
+
+---
+
+## Common Response Behavior
+
+The exact payload depends on the route, but the overall behavior is consistent across `v1`.
+
+### When the response is `200`
+
+The client receives the current data for that route.
+
+### When the response is `204`
+
+The client should assume that nothing has changed since the provided version and continue using cached data.
+
+### Payload Conventions
+
+- Some routes return their data inside a top-level `data` object.
+- Some routes return arrays directly.
+- Some routes return route-specific root objects such as `tracks`, `artists`, or `calendar`.
+
+This difference is expected and should be handled per route.
+
+---
+
+## Common Status Codes
+
+| Status Code | Meaning |
+|---|---|
+| `200` | Request succeeded and data was returned. |
+| `204` | No new data is available for the supplied version. |
+| `400` | Missing or invalid request parameters. |
+| `429` | Rate limit exceeded. |
+| `500` | Internal server error. |
+
+---
+
+## Route Index
+
+### Profile
+
+| Endpoint | Description |
+|---|---|
+| [`GET /profile/github`](#get-profilegithub) | GitHub profile summary |
+| [`GET /profile/leetcode`](#get-profileleetcode) | LeetCode profile summary |
+| [`GET /profile/roadmap`](#get-profileroadmap) | roadmap.sh profile summary |
+| [`GET /profile/spotify`](#get-profilespotify) | Spotify profile summary |
+
+### Heatmap
+
+| Endpoint | Description |
+|---|---|
+| [`GET /heatmap/combined`](#get-heatmapcombined) | Combined GitHub and LeetCode heatmap |
+| [`GET /heatmap/github`](#get-heatmapgithub) | GitHub heatmap |
+| [`GET /heatmap/leetcode`](#get-heatmapleetcode) | LeetCode heatmap |
+| [`GET /heatmap/roadmap`](#get-heatmaproadmap) | roadmap.sh heatmap |
+
+### Spotify
+
+| Endpoint | Description |
+|---|---|
+| [`GET /spotify/current_playing`](#get-spotifycurrent_playing) | Current playback state |
+| [`GET /spotify/recent_played`](#get-spotifyrecent_played) | Recently played tracks |
+| [`GET /spotify/playlists`](#get-spotifyplaylists) | User-owned playlists |
+| [`GET /spotify/top-tracks`](#get-spotifytop-tracks) | Top tracks |
+| [`GET /spotify/top-artists`](#get-spotifytop-artists) | Top artists |
+
+### Other
+
+| Endpoint | Description |
+|---|---|
+| [`GET /github/github-event`](#get-githubgithub-event) | GitHub event feed |
+| [`GET /github/repository-list`](#get-githubrepository-list) | GitHub repository list |
+| [`GET /roadmap/roadmap-list`](#get-roadmaproadmap-list) | roadmap.sh progress list |
+| [`GET /leetcode/submission-data`](#get-leetcodesubmission-data) | LeetCode submission totals |
+| [`GET /leetcode/recent-submission`](#get-leetcoderecent-submission) | LeetCode recent accepted submissions |
+| [`GET /leetcode/skill-stats`](#get-leetcodeskill-stats) | LeetCode skill statistics |
+
+---
+
+## Profile Routes
+
+Shared reference:
+- [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
+
+### `GET /profile/github`
+
+Returns GitHub profile information for the configured account.
 
 ```json
 {
@@ -112,23 +173,14 @@ GET /profile/github
 }
 ```
 
-### Notes
+Useful for:
+- Profile cards
+- Public account summary views
+- Hero/header profile sections
 
-- Response follows the shared [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+### `GET /profile/leetcode`
 
----
-
-## LeetCode Profile Data
-
-### Endpoint
-
-```http
-GET /profile/leetcode
-```
-
-### Response Shape
+Returns LeetCode profile information for the configured account.
 
 ```json
 {
@@ -141,31 +193,22 @@ GET /profile/leetcode
     "ranking": 0,
     "reputation": 0,
     "starRating": 0,
-    "contestBadge": [ ... ],
+    "contestBadge": [],
     "followers": 0,
     "following": 0,
-    "totalSolutions": 0,
+    "totalSolutions": 0
   }
 }
 ```
 
-### Notes
+Useful for:
+- Competitive coding profile sections
+- Rankings and reputation widgets
+- Dashboard summaries
 
-- Response follows the shared [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+### `GET /profile/roadmap`
 
----
-
-## Roadmap.sh Profile Data
-
-### Endpoint
-
-```http
-GET /profile/roadmap
-```
-
-### Response Shape
+Returns roadmap.sh profile information for the configured account.
 
 ```json
 {
@@ -178,23 +221,13 @@ GET /profile/roadmap
 }
 ```
 
-### Notes
+Useful for:
+- Learning progress summaries
+- Public developer profile pages
 
-- Response follows the shared [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+### `GET /profile/spotify`
 
----
-
-## Spotify Profile Data
-
-### Endpoint
-
-```http
-GET /profile/spotify
-```
-
-### Response Shape
+Returns Spotify profile information for the configured account.
 
 ```json
 {
@@ -208,34 +241,52 @@ GET /profile/spotify
 }
 ```
 
-### Notes
-
-- Response follows the shared [Profile Data Spec](../SYSTEM_SPEC.md#profile-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+Useful for:
+- Music profile badges
+- Creator profile dashboards
 
 ---
 
-# Heatmap Data Routes
+## Heatmap Routes
 
-## Available Routes
+Shared reference:
+- [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
 
-1. [Combined Heatmap Data](#combined-heatmap-data)
-2. [GitHub Heatmap Data](#github-heatmap-data)
-3. [LeetCode Heatmap Data](#leetcode-heatmap-data)
-4. [Roadmap.sh Heatmap Data](#roadmapsh-heatmap-data)
+### Heatmap Shape
 
----
+Most heatmap routes use this structure:
 
-## Combined Heatmap Data
-
-### Endpoint
-
-```http
-GET /heatmap/combined
+```json
+{
+  "activeYears": [2000],
+  "calendar": {
+    "years": {
+      "2000": {
+        "heatmap": [
+          {
+            "date": 1728738937,
+            "count": 2
+          }
+        ],
+        "currentStreak": 1,
+        "longestStreak": 1,
+        "totalActiveDays": 1,
+        "totalContributions": 1
+      }
+    },
+    "global": {
+      "currentStreak": 1,
+      "longestStreak": 1,
+      "totalActiveDays": 1,
+      "totalContributions": 1
+    }
+  }
+}
 ```
 
-### Response Shape
+### `GET /heatmap/combined`
+
+Returns both GitHub and LeetCode heatmap data in one response.
 
 ```json
 {
@@ -292,23 +343,13 @@ GET /heatmap/combined
 }
 ```
 
-### Notes
+Useful for:
+- Unified activity dashboards
+- Side-by-side contribution views
 
-- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+### `GET /heatmap/github`
 
----
-
-## GitHub Heatmap Data
-
-### Endpoint
-
-```http
-GET /heatmap/github
-```
-
-### Response Shape
+Returns GitHub heatmap data only.
 
 ```json
 {
@@ -338,23 +379,9 @@ GET /heatmap/github
 }
 ```
 
-### Notes
+### `GET /heatmap/leetcode`
 
-- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## LeetCode Heatmap Data
-
-### Endpoint
-
-```http
-GET /heatmap/leetcode
-```
-
-### Response Shape
+Returns LeetCode heatmap data only.
 
 ```json
 {
@@ -384,23 +411,9 @@ GET /heatmap/leetcode
 }
 ```
 
-### Notes
+### `GET /heatmap/roadmap`
 
-- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## Roadmap.sh Heatmap Data
-
-### Endpoint
-
-```http
-GET /heatmap/roadmap
-```
-
-### Response Shape
+Returns roadmap.sh heatmap data only.
 
 ```json
 {
@@ -430,489 +443,338 @@ GET /heatmap/roadmap
 }
 ```
 
-### Notes
-
-- Response follows the shared [Heatmap Data Spec](../SYSTEM_SPEC.md#heatmap-data)
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
 ---
 
-# Spotify Data Routes
+## Spotify Routes
 
-## Available Routes
+### Common Track Shape
 
-1. [Profile Data](#spotify-profile-data)
-2. [Current Playing](#spotify-current-playing)
-3. [Recent Played](#spotify-recent-played)
-4. [Playlists](#spotify-playlists)
-5. [TopTracks](#spotify-top-tracks)
-6. [TopArtists](#spotify-top-artists)
-
----
-
-## Spotify Current Playing
-
-### Endpoint
-
-```http
-GET /spotify/current_playing
-```
-
-### Response Shape
+The track-based Spotify routes return objects in this form:
 
 ```json
 {
-  is_playing: boolean,
-  track: {
-    title: string,
-    artist: Array<{ name: string, url: string }>,
-    cover: Array<object>,
-    url: string
-  } | null,
-  progress: {
-    current: number,
-    duration: number
-  }
+  "title": "string",
+  "artist": [
+    {
+      "name": "string",
+      "url": "string"
+    }
+  ],
+  "cover": [],
+  "url": "string"
 }
 ```
 
-### Notes
+### `GET /spotify/current_playing`
 
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+Returns the current playback state and track progress.
 
----
-
-## Spotify Recent Played
-
-### Endpoint
-
-```http
-GET /spotify/recent_played
-```
-
-### Response Shape
-
-```js
+```json
 {
-  tracks: Array<{
-    title: string,
-    artist: Array<{ name: string, url: string }>,
-    cover: Array<object>,
-    url: string
-  }>
-}
-```
-
-### Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## Spotify Playlists
-
-### Endpoint
-
-```http
-GET /spotify/playlists
-```
-
-### Response Shape
-
- ```js
- {
-  total: number,
-  playlists: Array<{
-    id: string,
-    name: string,
-    description: string,
-    url: string,
-    cover: Array<object>
-  }>
-}
-```
-
-### Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## Spotify TopTracks
-
-### Endpoint
-
-```http
-GET /spotify/top-tracks
-```
-
-### Response Shape
-
-```js
-{
-  tracks: Array<{
-    title: string,
-    artist: Array<{ name: string, url: string }>,
-    cover: Array<object>,
-    url: string
-  }>
-}
-```
-
-### Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## Spotify TopTracks
-
-### Endpoint
-
-```http
-GET /spotify/top-tracks
-```
-
-### Response Shape
-
-```js
-{
-  tracks: Array<{
-    title: string,
-    artist: Array<{ name: string, url: string }>,
-    cover: Array<object>,
-    url: string
-  }>
-}
-```
-
-### Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-## Spotify TopArtists
-
-### Endpoint
-
-```http
-GET /spotify/top-artists
-```
-
-### Response Shape
-
-```js
-{
-  tracks: Array<{
-    title: string,
-    artist: Array<{ name: string, url: string }>,
-    cover: Array<object>,
-    url: string
-  }>
-},
-```
-
-### Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
----
-
-# Other Data Routes
-
-## Available Routes
-
-1. [Github Event Data](#github-event-data)
-2. [Github Repository List](#github-repository-list)
-3. [Roadmap.sh Roadmap List](#roadmapsh-roadmap-list)
-4. [Leetcode Submission Data](#leetcode-submission-data)
-5. [Leetcode Recent Submission](#leetcode-recent-submission)
-6. [Leetcode Skill Stats](#leetcode-skill-stats)
-
----
-
-# Github Event Data
-
-## Endpoint
-
-```http
-GET /github/github-event
-```
-
-## Response Shape
-
-```js
-Array<{
-  id: string,
-  type: string,
-  createdAt: string,
-
-  repo: {
-    name: string,
-    url: string
+  "is_playing": true,
+  "track": {
+    "title": "string",
+    "artist": [
+      {
+        "name": "string",
+        "url": "string"
+      }
+    ],
+    "cover": [],
+    "url": "string"
   },
-
-  actor: {
-    username: string,
-    avatar: string
+  "progress": {
+    "current": 0,
+    "duration": 0
   }
-}>
-```
-
-## Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-# Github Repository List
-
-## Endpoint
-
-```http
-GET /github/repository-list
-```
-
-## Query Params
-
-```js
-{
-  username: string,
-  limit?: number
 }
 ```
 
-## Response Shape
+Useful for:
+- Live now-playing widgets
+- Streaming overlays
+- Personal dashboard cards
 
-```js
-Array<{
-  name: string,
-  description: string | null,
+### `GET /spotify/recent_played`
 
-  url: string,
+Returns recently played tracks.
 
-  stars: number,
-  forks: number,
-
-  languages: Array<{
-    name: string | null,
-    color: string | null,
-    size: number
-  }>,
-
-  topics: Array<string>,
-
-  createdAt: string,
-  updatedAt: string,
-
-  isPrivate: boolean,
-  isFork: boolean
-}>
-```
-
-## Notes
-
-- `username` is required
-- `limit` defaults to `50`
-- Returns repositories ordered by recently updated
-- Includes repository language breakdown
-- Language metadata includes:
-  - `name`
-  - `color`
-  - `size`
-- Repository topics are normalized into string arrays
-- Missing values are normalized safely
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-# Roadmap.sh Roadmap List
-
-## Endpoint
-
-```http
-GET /roadmap/roadmap-list
-```
-
-## Response Shape
-
-```js
-Array<{
-  title: string,
-  id: string,
-
-  done: number,
-  skipped: number,
-  learning: number,
-  total: number,
-
-  updatedAt: string,
-
-  isCustomResource: boolean,
-  roadmapSlug: string
-}>
-```
-
-## Notes
-
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-# Leetcode Submission Data
-
-## Endpoint
-
-```http
-GET /leetcode/submission-data
-```
-
-## Response Shape
-
-```js
+```json
 {
-  username: string,
+  "tracks": [
+    {
+      "title": "string",
+      "artist": [
+        {
+          "name": "string",
+          "url": "string"
+        }
+      ],
+      "cover": [],
+      "url": "string"
+    }
+  ]
+}
+```
 
-  submission: {
+### `GET /spotify/playlists`
 
-    solved: {
-      easy: number,
-      medium: number,
-      hard: number
+Returns playlists owned by the configured Spotify user.
+
+```json
+{
+  "total": 0,
+  "playlists": [
+    {
+      "id": "string",
+      "name": "string",
+      "description": "string",
+      "url": "string",
+      "cover": []
+    }
+  ]
+}
+```
+
+### `GET /spotify/top-tracks`
+
+Returns the user's top tracks.
+
+```json
+{
+  "tracks": [
+    {
+      "title": "string",
+      "artist": [
+        {
+          "name": "string",
+          "url": "string"
+        }
+      ],
+      "cover": [],
+      "url": "string"
+    }
+  ]
+}
+```
+
+### `GET /spotify/top-artists`
+
+Returns the user's top artists.
+
+```json
+{
+  "artists": [
+    {
+      "name": "string",
+      "url": "string",
+      "cover": []
+    }
+  ]
+}
+```
+
+Notes:
+- Spotify media arrays such as `cover` are returned as provided by the upstream source.
+- Playback progress values are represented numerically.
+
+---
+
+## Other Routes
+
+### `GET /github/github-event`
+
+Returns a list of recent GitHub events.
+
+```json
+[
+  {
+    "id": "string",
+    "type": "string",
+    "createdAt": "string",
+    "repo": {
+      "name": "string",
+      "url": "string"
     },
+    "actor": {
+      "username": "string",
+      "avatar": "string"
+    }
+  }
+]
+```
 
-    failed: {
-      easy: number,
-      medium: number,
-      hard: number
+Useful for:
+- Activity feeds
+- Developer profile timelines
+
+### `GET /github/repository-list`
+
+Returns public repository data for a GitHub user.
+
+Query parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `username` | `string` | Yes | GitHub username |
+| `limit` | `number` | No | Maximum number of repositories to return. Default: `50` |
+
+```json
+[
+  {
+    "name": "string",
+    "description": "string",
+    "url": "string",
+    "stars": 0,
+    "forks": 0,
+    "languages": [
+      {
+        "name": "string",
+        "color": "string",
+        "size": 0
+      }
+    ],
+    "topics": ["string"],
+    "createdAt": "string",
+    "updatedAt": "string",
+    "isPrivate": false,
+    "isFork": false
+  }
+]
+```
+
+Notes:
+- Repositories are ordered by recent updates.
+- Missing values are normalized safely when possible.
+
+### `GET /roadmap/roadmap-list`
+
+Returns roadmap.sh progress data for available roadmaps.
+
+```json
+[
+  {
+    "title": "string",
+    "id": "string",
+    "done": 0,
+    "skipped": 0,
+    "learning": 0,
+    "total": 0,
+    "updatedAt": "string",
+    "isCustomResource": false,
+    "roadmapSlug": "string"
+  }
+]
+```
+
+### `GET /leetcode/submission-data`
+
+Returns LeetCode solved, failed, untouched, and total counts grouped by difficulty.
+
+```json
+{
+  "username": "string",
+  "submission": {
+    "solved": {
+      "easy": 0,
+      "medium": 0,
+      "hard": 0
     },
-
-    untouched: {
-      easy: number,
-      medium: number,
-      hard: number
+    "failed": {
+      "easy": 0,
+      "medium": 0,
+      "hard": 0
     },
-
-    total: {
-      easy: number,
-      medium: number,
-      hard: number
+    "untouched": {
+      "easy": 0,
+      "medium": 0,
+      "hard": 0
+    },
+    "total": {
+      "easy": 0,
+      "medium": 0,
+      "hard": 0
     }
   },
-
-  languageProblemCount: Array<{
-    languageName: string,
-    problemsSolved: number
-  }>
+  "languageProblemCount": [
+    {
+      "languageName": "string",
+      "problemsSolved": 0
+    }
+  ]
 }
 ```
 
-## Notes
+Notes:
+- Missing numeric values should be treated as `0`.
 
-- Missing values default to `0`
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+### `GET /leetcode/recent-submission`
+
+Returns recent accepted LeetCode submissions for a user.
+
+Query parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `username` | `string` | Yes | LeetCode username |
+| `limit` | `number` | No | Maximum number of submissions to return. Default: `20` |
+
+```json
+[
+  {
+    "title": "string",
+    "timestamp": "string",
+    "url": "string"
+  }
+]
+```
+
+Notes:
+- Only accepted submissions are returned.
+- `timestamp` is a Unix timestamp string.
+- `url` may be `null` when the upstream value is not available.
+
+### `GET /leetcode/skill-stats`
+
+Returns LeetCode problem-solving stats grouped by skill level.
+
+Query parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `username` | `string` | Yes | LeetCode username |
+
+```json
+{
+  "advanced": [
+    {
+      "tagName": "string",
+      "problemsSolved": 0
+    }
+  ],
+  "intermediate": [
+    {
+      "tagName": "string",
+      "problemsSolved": 0
+    }
+  ],
+  "fundamental": [
+    {
+      "tagName": "string",
+      "problemsSolved": 0
+    }
+  ]
+}
+```
+
+Notes:
+- Empty categories are returned as empty arrays.
 
 ---
 
-# Leetcode Recent Submission
+## Integration Notes
 
-## Endpoint
-
-```http
-GET /leetcode/recent-submission
-```
-
-## Query Params
-
-```js
-{
-  username: string,
-  limit?: number
-}
-```
-
-## Response Shape
-
-```js
-Array<{
-  title: string,
-  timestamp: string | number,
-
-  url: string | null
-}>
-```
-
-## Notes
-
-- `username` is required
-- `limit` defaults to `20`
-- Returns only accepted submissions
-- `timestamp` is returned as unix timestamp string
-- Missing URLs fallback to `null`
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
-
----
-
-# Leetcode Skill Stats
-
-## Endpoint
-
-```http
-GET /leetcode/skill-stats
-```
-
-## Query Params
-
-```js
-{
-  username: string
-}
-```
-
-## Response Shape
-
-```js
-{
-  advanced: Array<{
-    tagName: string,
-    problemsSolved: number
-  }>,
-
-  intermediate: Array<{
-    tagName: string,
-    problemsSolved: number
-  }>,
-
-  fundamental: Array<{
-    tagName: string,
-    problemsSolved: number
-  }>
-}
-```
-
-## Notes
-
-- `username` is required
-- Returns categorized skill statistics
-- Tags are grouped into:
-  - `advanced`
-  - `intermediate`
-  - `fundamental`
-- Empty categories fallback to empty arrays
-- Supports diff-based incremental updates
-- Clients should always store the latest returned server version
+- Treat route payloads as read-only API output.
+- Cache the returned data locally together with the last known `version`.
+- Handle `204` as a valid success state.
+- Build route-specific parsers because not every endpoint uses the same top-level response shape.

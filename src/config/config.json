@@ -23,7 +23,8 @@
         "github": {
             "config":{
                 "username": "Akkiraj1234",
-                "lastNYears": 10
+                "lastNYears": 10,
+                "limit": 20
             }
         },
         "leetcode": {

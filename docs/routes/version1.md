@@ -626,111 +626,146 @@ GET /spotify/top-artists
 
 ---
 
+---
+
 # Other Data Routes
 
 ## Available Routes
 
-1. [Github Events](#github-event-data)
-2. [Roadmap.sh Roadmap List](#roadmapsh-roadmap-list)
-3. [Leetcode Submission Data]()
+1. [Github Event Data](#github-event-data)
+2. [Github Repository List](#github-repository-list)
+3. [Roadmap.sh Roadmap List](#roadmapsh-roadmap-list)
+4. [Leetcode Submission Data](#leetcode-submission-data)
+5. [Leetcode Recent Submission](#leetcode-recent-submission)
+6. [Leetcode Skill Stats](#leetcode-skill-stats)
 
 ---
 
-## Github Event Data
+# Github Event Data
 
-### Endpoint
+## Endpoint
 
 ```http
 GET /github/github-event
 ```
 
-### Response Shape
+## Response Shape
 
 ```js
-{
-  Array<{
-    id: string,
-    type: string,
-    createdAt: string,
-    repo: {
-      name: string,
-      url: string
-    },
-    actor: {
-      username: string,
-      avatar: string
-    }
-  }>
-}
+Array<{
+  id: string,
+  type: string,
+  createdAt: string,
+
+  repo: {
+    name: string,
+    url: string
+  },
+
+  actor: {
+    username: string,
+    avatar: string
+  }
+}>
 ```
 
-### Notes
+## Notes
 
 - Supports diff-based incremental updates
 - Clients should always store the latest returned server version
 
 ---
 
-## Roadmap.sh Roadmap List
+# Github Repository List
 
-### Endpoint
+## Endpoint
 
 ```http
-GET /roadmap/roadmap-list
+GET /github/repository-list
 ```
 
-### Response Shape
+## Query Params
 
 ```js
 {
-  Array<{
-    title: 'C++',
-    id: 'cpp',
-    done: 0,
-    skipped: 0,
-    learning: 0,
-    total: 127,
-    updatedAt: '2025-08-17T16:12:46.362Z',
-    isCustomResource: false,
-    roadmapSlug: ''
-  }>
+  username: string,
+  limit?: number
 }
 ```
 
-### Notes
+## Response Shape
 
+```js
+Array<{
+  name: string,
+  description: string | null,
+
+  url: string,
+
+  stars: number,
+  forks: number,
+
+  languages: Array<{
+    name: string | null,
+    color: string | null,
+    size: number
+  }>,
+
+  topics: Array<string>,
+
+  createdAt: string,
+  updatedAt: string,
+
+  isPrivate: boolean,
+  isFork: boolean
+}>
+```
+
+## Notes
+
+- `username` is required
+- `limit` defaults to `50`
+- Returns repositories ordered by recently updated
+- Includes repository language breakdown
+- Language metadata includes:
+  - `name`
+  - `color`
+  - `size`
+- Repository topics are normalized into string arrays
+- Missing values are normalized safely
 - Supports diff-based incremental updates
 - Clients should always store the latest returned server version
 
 ---
 
-## Roadmap.sh Roadmap List
+# Roadmap.sh Roadmap List
 
-### Endpoint
+## Endpoint
 
 ```http
 GET /roadmap/roadmap-list
 ```
 
-### Response Shape
+## Response Shape
 
 ```js
-{
-  Array<{
-    title: 'C++',
-    id: 'cpp',
-    done: 0,
-    skipped: 0,
-    learning: 0,
-    total: 127,
-    updatedAt: '2025-08-17T16:12:46.362Z',
-    isCustomResource: false,
-    roadmapSlug: ''
-  }>
-}
+Array<{
+  title: string,
+  id: string,
+
+  done: number,
+  skipped: number,
+  learning: number,
+  total: number,
+
+  updatedAt: string,
+
+  isCustomResource: boolean,
+  roadmapSlug: string
+}>
 ```
 
-### Notes
+## Notes
 
 - Supports diff-based incremental updates
 - Clients should always store the latest returned server version
@@ -745,30 +780,139 @@ GET /roadmap/roadmap-list
 GET /leetcode/submission-data
 ```
 
-## Response
+## Response Shape
 
-```json
+```js
 {
-  "username": "string",
+  username: string,
 
-  "submission": {
-    "solved": { "easy": 0, "medium": 0, "hard": 0},
-    "failed": { "easy": 0, "medium": 0, "hard": 0},
-    "untouched": { "easy": 0, "medium": 0, "hard": 0},
-    "total": { "easy": 0, "medium": 0, "hard": 0},
+  submission: {
+
+    solved: {
+      easy: number,
+      medium: number,
+      hard: number
+    },
+
+    failed: {
+      easy: number,
+      medium: number,
+      hard: number
+    },
+
+    untouched: {
+      easy: number,
+      medium: number,
+      hard: number
+    },
+
+    total: {
+      easy: number,
+      medium: number,
+      hard: number
+    }
   },
 
-  "languageProblemCount": [
-    {
-      "languageName": "string",
-      "problemsSolved": 0
-    }
-  ]
+  languageProblemCount: Array<{
+    languageName: string,
+    problemsSolved: number
+  }>
 }
 ```
 
 ## Notes
 
 - Missing values default to `0`
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+# Leetcode Recent Submission
+
+## Endpoint
+
+```http
+GET /leetcode/recent-submission
+```
+
+## Query Params
+
+```js
+{
+  username: string,
+  limit?: number
+}
+```
+
+## Response Shape
+
+```js
+Array<{
+  title: string,
+  timestamp: string | number,
+
+  url: string | null
+}>
+```
+
+## Notes
+
+- `username` is required
+- `limit` defaults to `20`
+- Returns only accepted submissions
+- `timestamp` is returned as unix timestamp string
+- Missing URLs fallback to `null`
+- Supports diff-based incremental updates
+- Clients should always store the latest returned server version
+
+---
+
+# Leetcode Skill Stats
+
+## Endpoint
+
+```http
+GET /leetcode/skill-stats
+```
+
+## Query Params
+
+```js
+{
+  username: string
+}
+```
+
+## Response Shape
+
+```js
+{
+  advanced: Array<{
+    tagName: string,
+    problemsSolved: number
+  }>,
+
+  intermediate: Array<{
+    tagName: string,
+    problemsSolved: number
+  }>,
+
+  fundamental: Array<{
+    tagName: string,
+    problemsSolved: number
+  }>
+}
+```
+
+## Notes
+
+- `username` is required
+- Returns categorized skill statistics
+- Tags are grouped into:
+  - `advanced`
+  - `intermediate`
+  - `fundamental`
+- Empty categories fallback to empty arrays
 - Supports diff-based incremental updates
 - Clients should always store the latest returned server version

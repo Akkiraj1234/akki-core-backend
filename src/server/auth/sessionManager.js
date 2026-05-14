@@ -1,21 +1,37 @@
-const crypto = require("crypto");
 const { MinQueue } = require("heapify");
+const crypto = require("crypto");
 
-class sessionMap{
-    constructor({ inactiveTime, sessionEndTime, checkInterval, sessionRemoveEvent, sessionActiveCheck}){
+
+class SessionTracker{
+    constructor({ 
+        inactiveTime, 
+        sessionEndTime, 
+        checkInterval, 
+        onSessionExpired, 
+        isSessionActive 
+    }){
         this.inactiveTime = inactiveTime ?? 120000;
         this.sessionEndTime = sessionEndTime ?? 600000;
         this.checkInterval = checkInterval ?? 10000;
-        this.sessionRemoveEvent = sessionRemoveEvent;
-        this.sessionActiveCheck = sessionActiveCheck;
+        this.onSessionExpired = onSessionExpired;
+        this.isSessionActive = isSessionActive;
 
-        if (isNaN(sessionRemoveEvent)){
-            throw runtimeError("sessionRemoveEvent argeumnt in sessionMap is needed to start server")
+        this.heap = new MinQueue();
+        this.maxActiveCycles = Math.floor(
+            this.sessionEndTime / this.inactiveTime
+        )
+        
+        if (typeof onSessionExpired != "function") {
+            throw new Error("sessionRemoveEvent must be function");
         }
 
-        if (isNaN(sessionActiveCheck)){
-            throw runtimeError("sessionRemoveEvent argeumnt in sessionMap is needed to start server")
+        if (typeof isSessionActive != "function") {
+            throw new Error("isSessionActive must be function")
         }
+    }
+
+    trackSession({ sessionId }){
+        this.heap.push( [sessionId, Date.now(), 0] )
     }
 
     trackSession({ sessionId }){
@@ -27,7 +43,7 @@ class sessionMap{
     }
 
     _check_and_remove(){
-        // main egion who check if session is active or not 
+        // main engion who check if session is active or not 
     }
 
     // both sessionRemoveEent adn sesionActiveCheck should take sessionId as arguemnt
@@ -44,7 +60,7 @@ class sessionMap{
 
 
 
-
+// its a binding
 class SessionManager {
 
     constructor() {

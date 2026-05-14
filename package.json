@@ -27,5 +27,8 @@
     "heapify": "^1.0.2",
     "nanoid": "^5.1.6",
     "neo-blessed": "^0.2.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^12.3.0"
   }
 }

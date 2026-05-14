@@ -24,6 +24,7 @@
     "axios": "^1.13.6",
     "dotenv": "^17.4.0",
     "fastify": "^5.8.2",
+    "heapify": "^1.0.2",
     "nanoid": "^5.1.6",
     "neo-blessed": "^0.2.0"
   }

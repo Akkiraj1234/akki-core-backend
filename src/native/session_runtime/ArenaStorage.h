@@ -1,6 +1,14 @@
 #ifndef ARENA_STORAGE_H
 #define ARENA_STORAGE_H
 
+// do not change these value everything 
+// optimize for these value only
+#define MAX_CONTAINER 255
+#define MAX_SLOT_SIZE 320
+#define MAX_SLOT 8192
+#define BITMAP_WORD_COUNT ((MAX_SLOT + 63) / 64)
+#define ARENA_BITMAP_WORDS ((MAX_CONTAINER + 63) / 64)
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -8,26 +16,27 @@
 // container
 typedef struct
 {
+    uint8_t free_bitmap_words[BITMAP_WORD_COUNT];
+    uint64_t bitmap[BITMAP_WORD_COUNT];
+    
     uint8_t* memory;
-    uint32_t slot_size;
-    uint32_t capacity;
-    uint32_t* free_slots;
-    uint32_t free_top;
-    uint8_t* bitmap;
+
+    uint16_t free_word_top;
+    uint16_t slot_size;
 
 } Container;
 
 
 typedef struct
 {
-    Container** containers;
-
+    uint8_t free_bitmap_words[ARENA_BITMAP_WORDS];
+    uint64_t bitmap[ARENA_BITMAP_WORDS];
+    
     uint16_t max_containers;
-    uint16_t free_container_index;
-
-    uint32_t slot_size;
-    uint32_t container_capacity;
-
+    uint16_t slot_size;
+    
+    Container* containers;
+    
 } Arena;
 
 

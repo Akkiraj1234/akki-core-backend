@@ -29,13 +29,12 @@ typedef struct
 
 typedef struct
 {
-    uint8_t free_bitmap_words[ARENA_BITMAP_WORDS];
     uint64_t bitmap[ARENA_BITMAP_WORDS];
-    
-    uint16_t max_containers;
+    uint8_t free_bitmap_words[ARENA_BITMAP_WORDS];
+    uint8_t free_word_top;
+
     uint16_t slot_size;
-    
-    Container* containers;
+    Container* containers[MAX_CONTAINER];
     
 } Arena;
 
@@ -58,7 +57,7 @@ void arena_destroy(
 );
 
 
-/*
+/*max_containers
 Insert data into arena.
 
 Returns:

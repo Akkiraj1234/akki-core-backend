@@ -2,13 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// do not change these value everything 
-// optimize for these value only
-#define MAX_CONTAINER 255
-#define MAX_SLOT_SIZE 320
-#define MAX_SLOT 8192
-#define BITMAP_WORD_COUNT ((MAX_SLOT + 63) / 64)
-
 
 static void set_bitmap_format(uint32_t slot_count, uint64_t* bitmap, uint32_t bitmap_size)
 {
@@ -74,6 +67,7 @@ static Container* _create_container( uint16_t slot_size )
     return container;
 }
 
+
 static inline void _destroy_container(Container* container){
     if (container == NULL) return;
 
@@ -87,12 +81,60 @@ static inline uint32_t _container_insert(Container* container, const void* data)
 
 }
 
+
+Arena* arena_create(
+    uint16_t slot_size
+)
+{
+    if (slot_size > MAX_SLOT_SIZE) return NULL;
+    Arena* arena = malloc(sizeof(Arena));
+    if (arena == NULL) return NULL;
+
+    // initialize
+    for (uint32_t i = 0; i < ARENA_BITMAP_WORDS; i++){
+        arena->free_bitmap_words[i] = i;
+    }
+
+    set_bitmap_format(
+        MAX_CONTAINER,
+        arena->bitmap,
+        sizeof(arena->bitmap)
+    );
+    memset(
+        arena->containers,
+        0,
+        sizeof(arena->containers)
+    );
+    arena->slot_size = slot_size;
+    arena->free_word_top = ARENA_BITMAP_WORDS-1;
+    _arena_create_container(arena);
+    return arena;
+}
+
+static inline Container* _arena_create_container(Arena* arena)
+{
+    
+}
+
 void arena_insert(Arena* arena)
 {
     // idk how to do that the api degine
     // data dierctly should be written in container
     // and its called _container_insert so?
 }
+
+
+void arena_destroy(Arena* arena)
+{
+    if (arena == NULL) return;
+    for (uint32_t i = 0; i < MAX_CONTAINER; i++)
+    {
+        _destroy_container(arena->containers[i]); // since other be null so it will exit anyway since inline its perfect
+        arena->containers[i] = NULL;
+    }
+    free(arena);
+}
+
 
 // correctness
 // insertion
@@ -102,63 +144,6 @@ void arena_insert(Arena* arena)
 // testing
 // edge cases
 
-
-
-Arena* arena_create(
-    uint8_t max_container,
-    uint16_t slot_size
-)
-{
-    if (max_container > MAX_CONTAINER || slot_size > MAX_SLOT_SIZE){
-        return NULL;
-    }
-
-    Arena* arena = malloc(sizeof(arena));
-
-
-    Container* containers = malloc(
-        sizeof(Container*) * max_container
-    );
-
-
-
-    
-
-    // creating container here
-    Container* containers = malloc( 
-        sizeof(Container*) * max_container 
-    );
-
-    Container* container = _create_container(
-        slot_size,
-        container_capacity
-    );  
-    Arena* arena = malloc(sizeof(Arena));
-
-    if (
-        containers == NULL ||
-        container == NULL ||
-        arena == NULL
-    ){
-        _destroy_container(container);
-        free(containers);
-        free(arena);
-        return NULL;
-    }
-
-    for (uint32_t i = 0; i < max_container; i++)
-    {
-        containers[i] = NULL;
-    }
-
-    containers[0] = container;
-    arena -> containers = containers;
-    arena -> max_containers = max_container;
-    arena -> free_container_index = 0;
-    arena -> slot_size = slot_size;
-    arena -> container_capacity = container_capacity;
-    return arena;
-}
 
 
 // old one cant be used anymore because random pointer access 

@@ -3,7 +3,7 @@
 #include <string.h>
 
 
-static void set_bitmap_format(uint32_t slot_count, uint64_t* bitmap, uint32_t bitmap_size)
+static void set_bitmap_format_u64(uint32_t slot_count, uint64_t* bitmap, uint32_t bitmap_size)
 {
     if (bitmap == NULL) return;
     memset(bitmap, 0xFF, bitmap_size);
@@ -17,19 +17,17 @@ static void set_bitmap_format(uint32_t slot_count, uint64_t* bitmap, uint32_t bi
 }
 
 
-static uint64_t* create_bitmap(uint32_t slot_count){
+static void set_bitmap_format_u32(uint32_t slot_count, uint32_t* bitmap, uint32_t bitmap_size)
+{
+    if (bitmap == NULL) return;
+    memset(bitmap, 0xFF, bitmap_size);
 
-    uint32_t bitmap_size = (slot_count + 63 ) / 64 * sizeof(uint64_t);
-    uint64_t* bitmap = malloc(bitmap_size);
-    if (bitmap == NULL) return NULL;
+    uint32_t valid_tail_bits = slot_count % 32;
+    if (valid_tail_bits == 0) return;
 
-    set_bitmap_format(
-        slot_count,
-        bitmap,
-        bitmap_size
-    );
-
-    return bitmap;
+    uint32_t mask = (1U << valid_tail_bits) -1;
+    uint32_t last_index = (slot_count + 31) / 32 -1;
+    bitmap[last_index] &= mask;
 }
 
 
@@ -50,19 +48,22 @@ static Container* _create_container( uint16_t slot_size )
     }
 
     // cleaning the bitmap
-    set_bitmap_format(
+    set_bitmap_format_u64(
         MAX_SLOT,
-        container->bitmap,
-        sizeof(container->bitmap)
+        container->slot_bitmap,
+        sizeof(container->slot_bitmap)
     );
 
-    for (uint32_t i = 0; i < BITMAP_WORD_COUNT; i++)
-    {
-        container->free_bitmap_words[i] = i;
-    }
+    set_bitmap_format_u32(
+        BITMAP_WORD_COUNT,
+        container->word_bitmap,
+        sizeof(container->word_bitmap)
+    );
+
+    container->summary_bitmap = 
+        (1u << WORD_BITMAP_WORDS) - 1;
 
     container->memory = memory;
-    container->free_word_top = BITMAP_WORD_COUNT-1;
     container->slot_size = slot_size;
     return container;
 }
@@ -76,51 +77,36 @@ static inline void _destroy_container(Container* container){
 }
 
 
-static inline uint32_t _container_insert(Container* container, const void* data)
+static inline void* _container_insert(Container* container, uint8_t full)
 {
-
+    return NULL;
 }
 
 
-Arena* arena_create(
-    uint16_t slot_size
-)
+Arena* arena_create(uint16_t slot_size)
 {
     if (slot_size > MAX_SLOT_SIZE) return NULL;
+
     Arena* arena = malloc(sizeof(Arena));
     if (arena == NULL) return NULL;
 
-    // initialize
-    for (uint32_t i = 0; i < ARENA_BITMAP_WORDS; i++){
-        arena->free_bitmap_words[i] = i;
-    }
-
-    set_bitmap_format(
+    set_bitmap_format_u64(
         MAX_CONTAINER,
-        arena->bitmap,
-        sizeof(arena->bitmap)
+        arena->container_bitmap,
+        sizeof(arena->container_bitmap)
     );
+
     memset(
-        arena->containers,
-        0,
+        arena->containers, 
+        0, 
         sizeof(arena->containers)
     );
+
+    arena->summary_bitmap = 
+        (1u << ARENA_BITMAP_WORDS) - 1;
+        
     arena->slot_size = slot_size;
-    arena->free_word_top = ARENA_BITMAP_WORDS-1;
-    _arena_create_container(arena);
     return arena;
-}
-
-static inline Container* _arena_create_container(Arena* arena)
-{
-    
-}
-
-void arena_insert(Arena* arena)
-{
-    // idk how to do that the api degine
-    // data dierctly should be written in container
-    // and its called _container_insert so?
 }
 
 
@@ -129,10 +115,46 @@ void arena_destroy(Arena* arena)
     if (arena == NULL) return;
     for (uint32_t i = 0; i < MAX_CONTAINER; i++)
     {
-        _destroy_container(arena->containers[i]); // since other be null so it will exit anyway since inline its perfect
+        // since other be null so it will exit anyway since inline its perfect
+        _destroy_container(arena->containers[i]); 
         arena->containers[i] = NULL;
     }
     free(arena);
+}
+
+
+void arena_insert(Arena* arena)
+{
+    // the whole insert and thsoe work like that 
+    // 1. scan bitmap and get index
+    // 2. set data
+    // 3. scan again to update
+
+    // scan bitmap
+    uint8_t summery = __builtin_ctz(arena->summary_bitmap);
+    uint8_t bitidx = __builtin_ctzll(arena->container_bitmap[summery]);
+    uint32_t index = summery * 64 + bitidx;
+
+    if (arena->containers[index] == NULL)
+    {
+        arena->containers[index] = _create_container(arena->slot_size);
+
+    } 
+
+    Container* container = arena->containers[index];
+    uint8_t full = _container_insert(container);
+
+    if (full == 1) 
+    {
+        arena->container_bitmap[summery] &= 
+            ~(1ULL << bitidx);
+            
+    }
+
+    if (arena->container_bitmap[summery] == 0)
+    {
+        arena->summary_bitmap &= ~(1U << summery);
+    }
 }
 
 

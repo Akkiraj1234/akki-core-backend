@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// do not change these value everything 
-// optimize for these value only
+// do not change these values
+// optimize for these values only
 #define MAX_CONTAINER 255
 #define MAX_SLOT_SIZE 320
 #define MAX_SLOT 8192
@@ -21,7 +21,7 @@ typedef struct
     uint64_t slot_bitmap[BITMAP_WORD_COUNT];
     uint32_t word_bitmap[WORD_BITMAP_WORDS];
     uint8_t summary_bitmap;
-    
+
     uint8_t* memory;
     uint16_t slot_size;
 
@@ -36,12 +36,12 @@ typedef struct
 
     uint16_t slot_size;
     Container* containers[MAX_CONTAINER];
-    
+
 } Arena;
 
 
 /*
-Create the arena object
+Create a new arena
 */
 Arena* arena_create(
     uint16_t slot_size
@@ -49,40 +49,40 @@ Arena* arena_create(
 
 
 /*
-Destroy the arena object
+Destroy the arena
 */
 void arena_destroy(
     Arena* arena
 );
 
 
-/*max_containers
-Insert data into arena.
+/*
+Allocate a new slot
 
 Returns:
-    index
+    handle
 */
 uint32_t arena_insert(
-    Arena* arena,
-    const void* data
+    Arena* arena
 );
 
 
 /*
-Remove data using handle
+Get readable and writable
+memory using handle
+*/
+void* arena_access(
+    Arena* arena,
+    uint32_t handle
+);
+
+
+/*
+Free slot using handle
 */
 void arena_remove(
     Arena* arena,
-    uint32_t index
-);
-
-
-/*
-Get pointer to stored object
-*/
-void* arena_get(
-    Arena* arena,
-    uint32_t index
+    uint32_t handle
 );
 
 #endif

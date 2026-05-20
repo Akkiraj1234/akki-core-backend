@@ -62,7 +62,7 @@ Allocate a new slot
 Returns:
     handle
 */
-uint32_t arena_insert(
+uint32_t arena_alloc(
     Arena* arena
 );
 
@@ -75,7 +75,7 @@ void* arena_access(
     Arena* arena,
     uint32_t handle
 );
-
+0
 
 /*
 Free slot using handle

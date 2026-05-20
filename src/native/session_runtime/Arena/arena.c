@@ -77,11 +77,42 @@ static inline void _destroy_container(Container* container){
 }
 
 
-static inline void* _container_insert(Container* container, uint8_t full)
+static inline uint32_t _container_alloc(Container* container, uint8_t full)
 {
-    return NULL;
+    uint8_t summery = __builtin_ctz(container->summary_bitmap);
+
+    if (summery == NULL) 
+    {
+        full = 1;
+        return NULL;
+    }
+    uint8_t word = __builtin_ctzll(container->word_bitmap[summery]);
+    uint8_t slot = __builtin_ctzll(container->slot_bitmap[word]);
+    
+    uint16_t index = (((summery * 32) + word) * 64) + slot;
+    // how do we know none is full? throw summery right then what it will return?
+
+    // ser used as marked
+    container->slot_bitmap[word] &= ~(1ULL << slot);
+
+    // check if slot is full
+    if (container->slot_bitmap[word] == 0)
+    {
+        container->word_bitmap[summery] &= ~(1ULL << word);
+        container->summary_bitmap &= ~(1U << summery);
+    }
+
+    if (container->summary_bitmap == 0)
+    {
+        full = 1;
+    }
+
+    return index;
 }
 
+/*
+=========================[ Arena] ========================
+*/
 
 Arena* arena_create(uint16_t slot_size)
 {
@@ -123,7 +154,7 @@ void arena_destroy(Arena* arena)
 }
 
 
-void arena_insert(Arena* arena)
+uint32_t arena_alloc(Arena* arena)
 {
     // the whole insert and thsoe work like that 
     // 1. scan bitmap and get index
@@ -133,38 +164,31 @@ void arena_insert(Arena* arena)
     // scan bitmap
     uint8_t summery = __builtin_ctz(arena->summary_bitmap);
     uint8_t bitidx = __builtin_ctzll(arena->container_bitmap[summery]);
-    uint32_t index = summery * 64 + bitidx;
+    uint8_t arena_index = summery * 64 + bitidx;
 
-    if (arena->containers[index] == NULL)
+    if (arena->containers[arena_index] == NULL)
     {
-        arena->containers[index] = _create_container(arena->slot_size);
+        arena->containers[arena_index] = _create_container(arena->slot_size);
 
     } 
 
-    Container* container = arena->containers[index];
-    uint8_t full = _container_insert(container);
+    Container* container = arena->containers[arena_index];
+    uint8_t full = 0;
+    uint16_t container_index = _container_alloc(container, &full);
 
     if (full == 1) 
     {
         arena->container_bitmap[summery] &= 
             ~(1ULL << bitidx);
-            
     }
 
     if (arena->container_bitmap[summery] == 0)
     {
         arena->summary_bitmap &= ~(1U << summery);
     }
+
+    return arena_index*container_index;
 }
-
-
-// correctness
-// insertion
-// deletion
-// slot lookup
-// bitmap updates
-// testing
-// edge cases
 
 
 

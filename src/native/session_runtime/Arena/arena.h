@@ -1,34 +1,18 @@
-#ifndef ARENA_STORAGE_H
-#define ARENA_STORAGE_H
+#ifndef ARENA_H
+#define ARENA_H
 
 #include <stdint.h>
 #include <stddef.h>
+#include "containers.h"
 
 // do not change these values
 // optimize for these values only
 #define MAX_CONTAINER 255
-#define MAX_SLOT_SIZE 320
-#define MAX_SLOT 8192
-
-#define BITMAP_WORD_COUNT ((MAX_SLOT + 63) / 64)
-#define WORD_BITMAP_WORDS ((BITMAP_WORD_COUNT + 31) / 32)
 #define ARENA_BITMAP_WORDS ((MAX_CONTAINER + 63) / 64)
+typedef uint32_t ArenaHandle;
 
 
-// each container takes 1064 bytes
-typedef struct
-{
-    uint64_t slot_bitmap[BITMAP_WORD_COUNT];
-    uint32_t word_bitmap[WORD_BITMAP_WORDS];
-    uint8_t summary_bitmap;
-
-    uint8_t* memory;
-    uint16_t slot_size;
-
-} Container;
-
-
-// each arena takes 2080 bytes
+// each arena takes 2080 bytes on linux x86_64
 typedef struct
 {
     uint64_t container_bitmap[ARENA_BITMAP_WORDS];
@@ -40,49 +24,30 @@ typedef struct
 } Arena;
 
 
-/*
-Create a new arena
-*/
 Arena* arena_create(
     uint16_t slot_size
 );
 
 
-/*
-Destroy the arena
-*/
 void arena_destroy(
     Arena* arena
 );
 
 
-/*
-Allocate a new slot
-
-Returns:
-    handle
-*/
-uint32_t arena_alloc(
+ArenaHandle arena_alloc(
     Arena* arena
 );
 
 
-/*
-Get readable and writable
-memory using handle
-*/
 void* arena_access(
     Arena* arena,
-    uint32_t handle
+    ArenaHandle handle
 );
-0
 
-/*
-Free slot using handle
-*/
-void arena_remove(
+
+void arena_free(
     Arena* arena,
-    uint32_t handle
+    ArenaHandle handle
 );
 
 #endif

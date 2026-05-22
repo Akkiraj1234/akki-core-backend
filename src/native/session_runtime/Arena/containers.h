@@ -8,8 +8,8 @@
 // optimize for these values only
 #define MAX_SLOT_SIZE 320
 #define MAX_SLOT 8192
-#define BITMAP_WORD_COUNT ((MAX_SLOT + 63) / 64)
-#define WORD_BITMAP_WORDS ((BITMAP_WORD_COUNT + 31) / 32)
+#define BITMAP_WORD_COUNT ((MAX_SLOT + 63) / 64) // 128 fit inside uint_8
+#define WORD_BITMAP_WORDS ((BITMAP_WORD_COUNT + 31) / 32) // 4 fit inside uint_8
 
 
 // each container takes 1064 bytes

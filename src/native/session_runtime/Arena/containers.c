@@ -52,47 +52,49 @@ inline void container_destroy( Container* container )
 }
 
 
-inline uint32_t container_alloc( Container* container, uint8_t full )
+inline uint32_t container_alloc( Container* container, uint8_t* full )
 {
-    uint8_t summery = __builtin_ctz(container->summary_bitmap);
-
-    if (summery == NULL) 
-    {
-        full = 1;
-        return NULL;
-    }
-    uint8_t word = __builtin_ctzll(container->word_bitmap[summery]);
-    uint8_t slot = __builtin_ctzll(container->slot_bitmap[word]);
+    if (container == NULL) return;
+    // we never need to check because if its not free arena would never call it
+    // uint8_t summery = __builtin_ctz(container->summary_bitmap);
+    // if (summery == NULL){ full = 1; return NULL; }
     
-    uint16_t index = (((summery * 32) + word) * 64) + slot;
-    // how do we know none is full? throw summery right then what it will return?
+    // finding the free slot
+    uint8_t summery_idx = __builtin_ctz(container->summary_bitmap);
+    uint8_t word_idx = __builtin_ctzll(container->word_bitmap[summery_idx]);
+    uint8_t slot_word_idx = (summery_idx * 32) + word_idx;
+    uint8_t slot_idx = __builtin_ctzll(container->slot_bitmap[slot_word_idx]);
 
-    // ser used as marked
-    container->slot_bitmap[word] &= ~(1ULL << slot);
+    // calculating index 
+    uint16_t index = (slot_word_idx * 64) + slot_idx;
 
-    // check if slot is full
-    if (container->slot_bitmap[word] == 0)
-    {
-        container->word_bitmap[summery] &= ~(1ULL << word);
-        container->summary_bitmap &= ~(1U << summery);
-    }
+    // update bits for empty of full
+    container->slot_bitmap[slot_word_idx] &= ~(1ULL << slot_idx);
 
-    if (container->summary_bitmap == 0)
-    {
-        full = 1;
-    }
+    container->word_bitmap[summery_idx] &= ~(
+        - (container->slot_bitmap[slot_word_idx] == 0) 
+        & (1U << word_idx)
+    );
+    container->summary_bitmap &= ~(
+        - (container->word_bitmap[summery_idx] == 0) 
+        & (1U << summery_idx)
+    );
 
+    // update the status and return
+    *full = container->summary_bitmap == 0;
     return index;
 }
 
 
 inline void* container_access( Container* container, uint16_t index )
 {
-
+    return (container != NULL && index < MAX_SLOT) 
+        ? (container->memory + (index * container->slot_size))
+        : NULL;
 }
 
 
 void container_free( Container* container, uint16_t index );
 {
-    
+    if (container == NULL) return;
 }

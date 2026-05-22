@@ -1,7 +1,6 @@
-#include "arena.h"
 #include "containers.h"
-#include "containers.c"
-#include "utils.c"
+#include "arena.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,6 +8,7 @@
 
 Arena* arena_create(uint16_t slot_size)
 {
+    // should i keep it here? because its check also happen in container create
     if (slot_size > MAX_SLOT_SIZE) return NULL;
 
     Arena* arena = malloc(sizeof(Arena));
@@ -20,15 +20,15 @@ Arena* arena_create(uint16_t slot_size)
         sizeof(arena->container_bitmap)
     );
 
+    arena->summary_bitmap = 
+        (1u << ARENA_BITMAP_WORDS) - 1;
+
     memset(
         arena->containers, 
         0, 
         sizeof(arena->containers)
     );
 
-    arena->summary_bitmap = 
-        (1u << ARENA_BITMAP_WORDS) - 1;
-        
     arena->slot_size = slot_size;
     return arena;
 }
@@ -37,10 +37,11 @@ Arena* arena_create(uint16_t slot_size)
 void arena_destroy(Arena* arena)
 {
     if (arena == NULL) return;
+
     for (uint32_t i = 0; i < MAX_CONTAINER; i++)
     {
-        // since other be null so it will exit anyway since inline its perfect
-        _destroy_container(arena->containers[i]); 
+
+        container_destroy(arena->containers[i]); 
         arena->containers[i] = NULL;
     }
     free(arena);
@@ -49,48 +50,84 @@ void arena_destroy(Arena* arena)
 
 uint32_t arena_alloc(Arena* arena)
 {
-    // the whole insert and thsoe work like that 
-    // 1. scan bitmap and get index
-    // 2. set data
-    // 3. scan again to update
 
-    // scan bitmap
-    uint8_t summery = __builtin_ctz(arena->summary_bitmap);
-    uint8_t bitidx = __builtin_ctzll(arena->container_bitmap[summery]);
-    uint8_t arena_index = summery * 64 + bitidx;
+    if (arena == NULL) return UINT32_MAX;
 
-    if (arena->containers[arena_index] == NULL)
+    // finding the free slot 
+    uint8_t summery_idx = __builtin_ctz(arena->summary_bitmap);
+    uint8_t bitmap_idx = __builtin_ctzll(arena->container_bitmap[summery_idx]);
+    uint8_t arena_index = (summery_idx * 64) + bitmap_idx;
+    
+    // if container not exists create one
+    if (arena->containers[arena_index] == NULL) 
     {
-        arena->containers[arena_index] = _create_container(arena->slot_size);
+        arena->containers[arena_index] = 
+            container_create(arena->slot_size);
+    }
 
-    } 
-
-    Container* container = arena->containers[arena_index];
+    // calculating index
     uint8_t full = 0;
-    uint16_t container_index = _container_alloc(container, &full);
+    uint16_t index = container_alloc(
+        arena->containers[arena_index],
+        &full
+    );
 
-    if (full == 1) 
-    {
-        arena->container_bitmap[summery] &= 
-            ~(1ULL << bitidx);
-    }
+    arena->container_bitmap[summery_idx] &= ~(-full & (1ULL << bitmap_idx));
+    arena->summary_bitmap &= ~(
+        -(arena->container_bitmap[summery_idx] == 0)
+        & (1U << summery_idx)
+    );
 
-    if (arena->container_bitmap[summery] == 0)
-    {
-        arena->summary_bitmap &= ~(1U << summery);
-    }
-
-    return arena_index*container_index;
+    return (arena_index * MAX_SLOT) + index;
 }
 
 
 void* arena_access( Arena* arena, ArenaHandle handle )
 {
+    // first we need to find container index and then index.
+    uint8_t container_idx = handle >> 13; //max slot is 8192 power of2
+    uint16_t index = handle & (MAX_SLOT - 1);
 
+    if (container_idx >= MAX_CONTAINER) return NULL;
+
+    // return null auto if something is invalid
+    return container_access(
+        arena->containers[container_idx],
+        index
+    );
 }
 
 
 void arena_free( Arena* arena, ArenaHandle handle )
 {
-    
+    if (arena == NULL) return;
+
+
+    uint8_t container_idx = handle >> 13;
+    uint16_t index = handle & (MAX_SLOT - 1);
+
+    if (container_idx >= MAX_CONTAINER) return;
+
+    Container* container = arena->containers[container_idx];
+
+    if (container == NULL)
+    {
+        return;
+    }
+
+    // free local slot
+    container_free(container, index);
+
+    // restore arena hierarchy
+    uint8_t summary_idx =
+        container_idx >> 6;
+
+    uint8_t bitmap_idx =
+        container_idx & 63;
+
+    arena->container_bitmap[summary_idx] |=
+        (1ULL << bitmap_idx);
+
+    arena->summary_bitmap |=
+        (1U << summary_idx);
 }

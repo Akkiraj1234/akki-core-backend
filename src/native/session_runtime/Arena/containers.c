@@ -1,5 +1,5 @@
 #include "containers.h"
-#include "utils.c"
+#include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,9 +52,9 @@ inline void container_destroy( Container* container )
 }
 
 
-inline uint32_t container_alloc( Container* container, uint8_t* full )
+inline uint16_t container_alloc( Container* container, uint8_t* full )
 {
-    if (container == NULL) return;
+    if (container == NULL) return UINT16_MAX;
     // we never need to check because if its not free arena would never call it
     // uint8_t summery = __builtin_ctz(container->summary_bitmap);
     // if (summery == NULL){ full = 1; return NULL; }
@@ -67,7 +67,7 @@ inline uint32_t container_alloc( Container* container, uint8_t* full )
 
     // calculating index 
     uint16_t index = (slot_word_idx * 64) + slot_idx;
-
+    
     // update bits for empty of full
     container->slot_bitmap[slot_word_idx] &= ~(1ULL << slot_idx);
 
@@ -94,7 +94,26 @@ inline void* container_access( Container* container, uint16_t index )
 }
 
 
-void container_free( Container* container, uint16_t index );
+inline void container_free( Container* container, uint16_t index )
 {
-    if (container == NULL) return;
+    if (container == NULL || index >= MAX_SLOT) return;
+
+    uint8_t slot_index = index >> 6;
+    uint8_t word_index = slot_index >> 5;
+
+    container->slot_bitmap[slot_index] |= (1ULL << (index & 63));
+    container->word_bitmap[word_index] |= (1U << (slot_index & 31));
+    container->summary_bitmap |= (1U << word_index);
 }
+
+// nice but we gonna use binary stuff >> and & :0 because its power of 2
+// about why because / this is cheap but mod is definitely not cheap so :)
+// void container_free( Container* container, uint16_t index )
+// {
+//     if (container == NULL || index >= MAX_SLOT) return;
+//     uint8_t slot_index = index / 64;
+//     uint8_t word_index = slot_index / 32;
+//     container->slot_bitmap[slot_index] |= (1ULL << index % 64);
+//     container->word_bitmap[word_index] |= (1U << slot_index % 32);
+//     container->summary_bitmap |= (1U << word_index);
+// }

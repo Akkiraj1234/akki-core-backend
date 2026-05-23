@@ -99,7 +99,8 @@ void* arena_access( Arena* arena, ArenaHandle handle )
 
 
 void arena_free( Arena* arena, ArenaHandle handle )
-{
+{   
+    uint8_t free = 0;
     uint8_t container_idx = handle >> 13;
     uint16_t index = handle & (MAX_SLOT - 1);
     uint8_t sb_idx = container_idx >> 6; // container_idx / 64
@@ -111,5 +112,9 @@ void arena_free( Arena* arena, ArenaHandle handle )
     // updating bitmap
     arena->summary_bitmap |= (1U << sb_idx);
     arena->container_bitmap[sb_idx] |= (1ULL << cb_idx);
-    container_free(arena->containers[container_idx], index);
+    container_free(arena->containers[container_idx], index, &free);
+    if (free) {
+        container_destroy(arena->containers[container_idx]);
+        arena->containers[container_idx] = NULL;
+    }
 }

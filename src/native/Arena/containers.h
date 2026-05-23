@@ -21,6 +21,7 @@ typedef struct
 
     uint8_t* memory;
     uint16_t slot_size;
+    uint16_t used_count;
 
 } Container;
 
@@ -49,7 +50,8 @@ void* container_access(
 
 void container_free(
     Container* container,
-    uint16_t index
+    uint16_t index,
+    uint8_t* free
 );
 
 

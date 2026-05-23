@@ -39,6 +39,7 @@ Container* container_create( uint16_t slot_size )
 
     container->memory = memory;
     container->slot_size = slot_size;
+    container->used_count = 0;
     return container;
 }
 
@@ -82,6 +83,7 @@ inline uint16_t container_alloc( Container* container, uint8_t* full )
 
     // update the status and return
     *full = container->summary_bitmap == 0;
+    container->used_count++;
     return index;
 }
 
@@ -94,7 +96,7 @@ inline void* container_access( Container* container, uint16_t index )
 }
 
 
-inline void container_free( Container* container, uint16_t index )
+inline void container_free( Container* container, uint16_t index, uint8_t* free)
 {
     if (container == NULL || index >= MAX_SLOT) return;
 
@@ -104,6 +106,9 @@ inline void container_free( Container* container, uint16_t index )
     container->slot_bitmap[slot_index] |= (1ULL << (index & 63));
     container->word_bitmap[word_index] |= (1U << (slot_index & 31));
     container->summary_bitmap |= (1U << word_index);
+
+    container->used_count--;
+    *free = container->used_count == 0;
 }
 
 // nice but we gonna use binary stuff >> and & :0 because its power of 2

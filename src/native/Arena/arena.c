@@ -40,7 +40,6 @@ void arena_destroy(Arena* arena)
 
     for (uint32_t i = 0; i < MAX_CONTAINER; i++)
     {
-
         container_destroy(arena->containers[i]); 
         arena->containers[i] = NULL;
     }
@@ -65,6 +64,7 @@ uint32_t arena_alloc(Arena* arena)
             container_create(arena->slot_size);
     }
 
+    if (arena->containers[arena_index] == NULL) return UINT32_MAX;
     // calculating index
     uint8_t full = 0;
     uint16_t index = container_alloc(
@@ -88,7 +88,7 @@ void* arena_access( Arena* arena, ArenaHandle handle )
     uint8_t container_idx = handle >> 13; //max slot is 8192 power of2
     uint16_t index = handle & (MAX_SLOT - 1);
 
-    if (container_idx >= MAX_CONTAINER) return NULL;
+    if (arena == NULL || container_idx >= MAX_CONTAINER) return NULL;
 
     // return null auto if something is invalid
     return container_access(
@@ -100,34 +100,16 @@ void* arena_access( Arena* arena, ArenaHandle handle )
 
 void arena_free( Arena* arena, ArenaHandle handle )
 {
-    if (arena == NULL) return;
-
-
     uint8_t container_idx = handle >> 13;
     uint16_t index = handle & (MAX_SLOT - 1);
+    uint8_t sb_idx = container_idx >> 6; // container_idx / 64
+    uint8_t cb_idx = container_idx & 63; // container_idx % 64
 
-    if (container_idx >= MAX_CONTAINER) return;
 
-    Container* container = arena->containers[container_idx];
-
-    if (container == NULL)
-    {
-        return;
-    }
-
-    // free local slot
-    container_free(container, index);
-
-    // restore arena hierarchy
-    uint8_t summary_idx =
-        container_idx >> 6;
-
-    uint8_t bitmap_idx =
-        container_idx & 63;
-
-    arena->container_bitmap[summary_idx] |=
-        (1ULL << bitmap_idx);
-
-    arena->summary_bitmap |=
-        (1U << summary_idx);
+    if (arena == NULL || container_idx >= MAX_CONTAINER) return;
+    
+    // updating bitmap
+    arena->summary_bitmap |= (1U << sb_idx);
+    arena->container_bitmap[sb_idx] |= (1ULL << cb_idx);
+    container_free(arena->containers[container_idx], index);
 }

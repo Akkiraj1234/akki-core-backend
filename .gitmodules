@@ -1,0 +1,9 @@
+[submodule "src/lib/uWebSockets"]
+	path = src/lib/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
+	fetchRecurseSubmodules = true
+
+[submodule "src/lib/external/abseil"]
+	path = src/lib/external/abseil
+	url = https://github.com/abseil/abseil-cpp
+	fetchRecurseSubmodules = true

@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/lib/external/abseil",
+                "${workspaceFolder}/lib/uWebSockets",
+                "${workspaceFolder}/lib/uWebSockets/src",
+                "${workspaceFolder}/lib/uWebSockets/uSockets/src"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

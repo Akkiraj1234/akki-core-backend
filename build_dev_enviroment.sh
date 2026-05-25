@@ -8,6 +8,10 @@ log() {
     printf '\n==> %s\n' "$1"
 }
 
+is_linux() {
+    [[ "$(uname -s 2>/dev/null || printf '')" == "Linux" ]]
+}
+
 find_python() {
     if command -v python3 >/dev/null 2>&1; then
         printf '%s\n' "python3"
@@ -19,14 +23,14 @@ find_python() {
         return
     fi
 
-    if command -v py >/dev/null 2>&1; then
-        printf '%s\n' "py -3"
-        return
-    fi
-
-    printf 'Python was not found. Install Python 3 and try again.\n' >&2
+    printf 'Python 3 was not found. Install Python 3 on Linux and try again.\n' >&2
     exit 1
 }
+
+if ! is_linux; then
+    printf 'This script is Linux-only. Run it on a Linux environment.\n' >&2
+    exit 1
+fi
 
 PYTHON_CMD="$(find_python)"
 VENV_DIR=".venv"
@@ -34,16 +38,11 @@ VENV_DIR=".venv"
 log "Creating Python virtual environment"
 $PYTHON_CMD -m venv "$VENV_DIR"
 
-if [[ -f "$VENV_DIR/Scripts/activate" ]]; then
-    # Windows Git Bash/MSYS path.
-    # shellcheck disable=SC1091
-    source "$VENV_DIR/Scripts/activate"
-elif [[ -f "$VENV_DIR/bin/activate" ]]; then
-    # Linux/macOS path.
+if [[ -f "$VENV_DIR/bin/activate" ]]; then
     # shellcheck disable=SC1091
     source "$VENV_DIR/bin/activate"
 else
-    printf 'Could not find the virtual environment activation script.\n' >&2
+    printf 'Could not find the Linux virtual environment activation script at %s/bin/activate.\n' "$VENV_DIR" >&2
     exit 1
 fi
 
@@ -52,7 +51,7 @@ if [[ -f "requirements.txt" ]]; then
     TEMP_REQUIREMENTS="$(mktemp)"
     trap 'rm -f "$TEMP_REQUIREMENTS"' EXIT
 
-    python - "requirements.txt" "$TEMP_REQUIREMENTS" <<'PY'
+    "$PYTHON_CMD" - "requirements.txt" "$TEMP_REQUIREMENTS" <<'PY'
 from pathlib import Path
 import sys
 
@@ -72,7 +71,7 @@ else:
 target.write_text(text, encoding="utf-8")
 PY
 
-    python -m pip install -r "$TEMP_REQUIREMENTS"
+    "$PYTHON_CMD" -m pip install -r "$TEMP_REQUIREMENTS"
 else
     log "Skipping Python requirements; requirements.txt was not found"
 fi

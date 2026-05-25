@@ -15,23 +15,6 @@
             "cStandard": "c17",
             "cppStandard": "gnu++17",
             "intelliSenseMode": "linux-gcc-x64"
-        },
-        {
-            "name": "Windows",
-            "includePath": [
-                "${workspaceFolder}",
-                "${workspaceFolder}/lib",
-                "${workspaceFolder}/src/native",
-                "${workspaceFolder}/lib/external/abseil",
-                "${workspaceFolder}/lib/uWebSockets",
-                "${workspaceFolder}/lib/uWebSockets/src",
-                "${workspaceFolder}/lib/uWebSockets/uSockets/src",
-                "${workspaceFolder}/src/native"
-            ],
-            "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
-            "cStandard": "c17",
-            "cppStandard": "gnu++17",
-            "intelliSenseMode": "windows-gcc-x64"
         }
     ],
     "version": 4

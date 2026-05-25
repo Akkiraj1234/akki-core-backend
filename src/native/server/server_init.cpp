@@ -1,4 +1,5 @@
 #include <uWebSockets/src/App.h>
+#include <iostream>
 #include "rate_limit/limiter.h"
 
 
@@ -8,12 +9,10 @@
 
 
 
-
 //==================================
 // calling all plugin inside routes
 // do not remove or modify it
 //----------------------------------
-
 #include "routes/native_routes.h"
 
 void start_routes(uWS::App& app)
@@ -24,7 +23,7 @@ void start_routes(uWS::App& app)
 //===================================
 
 
-int main()
+void start_server()
 {
     uWS::App app;
     start_routes(app);

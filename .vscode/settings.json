@@ -1,8 +1,14 @@
 {
   "cSpell.words": [
+    "addstr",
     "akki",
+    "getch",
+    "getmaxyx",
     "getsse",
     "LIBUS",
+    "protcole",
+    "stdscr",
+    "testpy",
     "USOCKETS"
   ]
 }

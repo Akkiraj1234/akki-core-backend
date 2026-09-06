@@ -726,7 +726,7 @@ const worker_map = {
         },
         "getGithubRepoList": {
             callable: getGithubRepoList,
-            key: "github.events",
+            key: "github.repositories",
             priority: PRIORITY.medium,
             next_run: 12 * 3600 * 1000
         }
@@ -738,7 +738,7 @@ const on_demand_map = {
     configKey: "services.github.config",
     name: "Github_OnDemand",
     fetchers: {
-        "getGithubRepoInfo": {
+        "repoinfo": {
             callable: getGithubRepoInfo,
             key: "github.ondeamnd",
             cache_time: 30 * 60 * 1000,

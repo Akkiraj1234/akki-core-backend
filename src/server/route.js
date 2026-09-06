@@ -1,7 +1,23 @@
 const { SECRET } = require("../config");
 const AUTH_KEY = SECRET.AUTH_KEY;
+const fs = require("fs");
+const path = require("path");
 
 
+async function loadRoutes({ app, deps, protect }) {
+    const routesDirectory = path.join(__dirname, "routes");
+    const routeFiles = fs.readdirSync(routesDirectory)
+        .filter((file) => file.endsWith(".js"))
+        .sort();
+
+    for (const file of routeFiles) {
+        const routeModule = require(path.join(routesDirectory, file));
+
+        if (typeof routeModule.registerRoutes !== "function") continue;
+
+        await routeModule.registerRoutes({ app, deps, protect });
+    }
+}
 
 async function protect(request, reply) {
     const apiKey = request.headers["x-api-key"];
@@ -100,7 +116,13 @@ async function registerRoutes(app, deps = {}) {
     app.get("/health", health_func);
     app.post("/init", init_config, init_func);
     app.get("/state", { preHandler: protect }, state_func);
-    app.get("/data/:key", data_config, data_key_func);
+    app.get("/database/:key", data_config, data_key_func);
+
+    await loadRoutes({
+        app,
+        deps: { databaseManager, cacheManager },
+        protect
+    });
 }
 
 

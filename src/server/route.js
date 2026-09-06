@@ -11,11 +11,16 @@ async function loadRoutes({ app, deps, protect }) {
         .sort();
 
     for (const file of routeFiles) {
-        const routeModule = require(path.join(routesDirectory, file));
+        const routeModule = require(
+            path.join(routesDirectory, file)
+        );
 
-        if (typeof routeModule.registerRoutes !== "function") continue;
+        if (typeof routeModule.registerRoutes !== "function") 
+            continue;
 
-        await routeModule.registerRoutes({ app, deps, protect });
+        await routeModule.registerRoutes(
+            { app, deps, protect }
+        );
     }
 }
 
@@ -117,7 +122,7 @@ async function registerRoutes(app, deps = {}) {
     app.post("/init", init_config, init_func);
     app.get("/state", { preHandler: protect }, state_func);
     app.get("/database/:key", data_config, data_key_func);
-
+    
     await loadRoutes({
         app,
         deps: { databaseManager, cacheManager },

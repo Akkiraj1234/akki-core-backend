@@ -1,4 +1,5 @@
 class CacheManager {
+
     constructor({ defaultTTL = 60_000, logger = null } = {}) {
         this.defaultTTL = Math.max(0, Number(defaultTTL) || 0);
         this.logger = logger;
@@ -8,9 +9,9 @@ class CacheManager {
     _log(level, message, data = null) {
         if (!this.logger) return;
         this.logger.log({
-            level,
-            source: "CACHE",
-            message,
+            level, 
+            source: "CACHE", 
+            message, 
             data
         });
     }

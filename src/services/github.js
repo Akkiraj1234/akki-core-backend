@@ -334,21 +334,19 @@ async function fetchGithubHeatmap({ username }) {
  * Output (ServiceResponse):
  * ```js
  * {
- *   data: {
- *     event: Array<{
- *       id: string,
- *       type: string,
- *       createdAt: string,
- *       repo: {
- *         name: string,
- *         url: string
- *       },
- *       actor: {
- *         username: string,
- *         avatar: string
- *       }
- *     }>
- *   },
+ *   data: Array<{
+ *     id: string,
+ *     type: string,
+ *     createdAt: string,
+ *     repo: {
+ *       name: string,
+ *       url: string
+ *     },
+ *     actor: {
+ *       username: string,
+ *       avatar: string
+ *     }
+ *   }>,
  *   error,
  *   code
  * }
@@ -395,6 +393,314 @@ async function getGithubEvents({ username }) {
 }
 
 
+/**
+ * Fetches GitHub repositories for a user.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * ```js
+ * {
+ *   username: string,
+ *   limit?: number
+ * }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Output (ServiceResponse):
+ * ```js
+ * {
+ *   data: Array<{
+ *     name: string,
+ *     description: string | null,
+ *
+ *     url: string,
+ *
+ *     stars: number,
+ *     forks: number,
+ *
+ *     languages: Array<{
+ *       name: string | null,
+ *       color: string | null,
+ *       size: number
+ *     }>,
+ *
+ *     topics: Array<string>,
+ *
+ *     createdAt: string,
+ *     updatedAt: string,
+ *
+ *     isPrivate: boolean,
+ *     isFork: boolean
+ *   }>,
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Errors:
+ * - SERVICE_NOT_CONFIGURED → init(secrets) not called / token missing
+ * - UNAUTHORIZED / FORBIDDEN → invalid or expired token
+ * - SERVICE_UNAVAILABLE → API/network failure
+ *
+ * ------------------------------------------------------------
+ * Behavior:
+ * - Fetches repositories using GitHub GraphQL API
+ * - Returns repositories ordered by recently updated
+ * - Extracts repository topics and language breakdown
+ * - Includes language usage size and color metadata
+ * - Normalizes missing values safely
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * - username is required
+ * - limit defaults to 50
+ * - init(secrets) must be called before usage
+ * - relies on global GITHUB_AUTH_HANDLER
+ */
+async function getGithubRepoList({ username, limit = 50 }) {
+
+    const query = `
+    query($username: String!, $limit: Int!) {
+        user(login: $username) {
+            repositories(
+                first: $limit,
+                ownerAffiliations: OWNER,
+                orderBy: {
+                    field: UPDATED_AT,
+                    direction: DESC
+                }
+            ) {
+                nodes {
+                    name
+                    description
+                    url
+                    stargazerCount
+                    forkCount
+                    createdAt
+                    updatedAt
+                    isPrivate
+                    isFork
+                    languages(first: 10) {
+                        edges {
+                            size
+                            node { 
+                                name
+                                color
+                            }
+                        }
+                    }
+                    repositoryTopics(first: 10) {
+                        nodes {
+                            topic {
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }`;
+
+    if (!username) return createMissingInputError({
+        field: "username",
+        service: "getGithubRepoList"
+    });
+
+    const response = await GITHUB_AUTH_HANDLER.handlePost(
+        async (header) => POST({
+            url: "https://api.github.com/graphql",
+            data: { query, variables: { username, limit }},
+            headers: {
+                ...header,
+                "Content-Type": "application/json"
+            }
+        })
+    );
+
+    return handleServiceError({
+        response,
+        format: (data) => {
+            const repos = data?.data?.user?.repositories?.nodes ?? [];
+
+            return repos.map((repo) => ({
+                name: repo?.name ?? null,
+                description: repo?.description ?? null,
+                url: repo?.url ?? null,
+                stars: repo?.stargazerCount ?? 0,
+                forks: repo?.forkCount ?? 0,
+
+                languages:
+                    repo?.languages?.edges?.map((item) => ({
+                        name: item?.node?.name ?? null,
+                        color: item?.node?.color ?? null,
+                        size: item?.size ?? 0
+                    })) ?? [],
+
+                topics:
+                    repo?.repositoryTopics?.nodes?.map(
+                        (item) => item?.topic?.name
+                    ).filter(Boolean) ?? [],
+
+                createdAt: repo?.createdAt ?? null,
+                updatedAt: repo?.updatedAt ?? null,
+                isPrivate: repo?.isPrivate ?? false,
+                isFork: repo?.isFork ?? false
+            }));
+        }
+    });
+}
+
+/**
+ * Fetches detailed GitHub repository information.
+ *
+ * ------------------------------------------------------------
+ * Input:
+ * ```js
+ * {
+ *   owner: string,
+ *   repo: string
+ * }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Output (ServiceResponse):
+ * ```js
+ * {
+ *   data: {
+ *     name: string,
+ *     description: string | null,
+ *
+ *     url: string,
+ *
+ *     stars: number,
+ *     forks: number,
+ *     watchers: number,
+ *
+ *     primaryLanguage: string | null,
+ *
+ *     languages: Array<string>,
+ *
+ *     defaultBranch: string | null,
+ *     license: string | null,
+ *
+ *     createdAt: string,
+ *     updatedAt: string
+ *   },
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * ------------------------------------------------------------
+ * Errors:
+ * - SERVICE_NOT_CONFIGURED → init(secrets) not called / token missing
+ * - UNAUTHORIZED / FORBIDDEN → invalid or expired token
+ * - NOT_FOUND → repository does not exist
+ * - SERVICE_UNAVAILABLE → API/network failure
+ *
+ * ------------------------------------------------------------
+ * Behavior:
+ * - Fetches repository details using GitHub GraphQL API
+ * - Extracts language and license metadata
+ * - Safely normalizes missing values
+ *
+ * ------------------------------------------------------------
+ * Rules:
+ * - owner is required
+ * - repo is required
+ * - init(secrets) must be called before usage
+ * - relies on global GITHUB_AUTH_HANDLER
+ */
+async function getGithubRepoInfo({ owner, repo }) {
+    // meant to use as to fetch data not use by workermap
+    const query = `
+    query($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+            name
+            description
+            url
+            stargazerCount
+            forkCount
+            watcherCount
+            createdAt
+            updatedAt
+            primaryLanguage {
+                name
+            }
+            languages(first: 10) {
+                nodes {
+                    name
+                }
+            }
+            defaultBranchRef {
+                name
+            }
+            licenseInfo {
+                name
+            }
+        }
+    }`;
+
+    if (!owner) return createMissingInputError({
+        field: "owner",
+        service: "getGithubRepoInfo"
+    });
+
+    if (!repo) return createMissingInputError({
+        field: "repo",
+        service: "getGithubRepoInfo"
+    });
+
+    const response = await GITHUB_AUTH_HANDLER.handlePost(
+        (header) => POST({
+            url: "https://api.github.com/graphql",
+            data: { query, variables: { owner, repo } },
+            headers: {
+                ...header,
+                "Content-Type": "application/json"
+            }
+        })
+    );
+
+    return handleServiceError({
+        response,
+        format: (data) => {
+
+            const repository =
+                data?.data?.repository ?? {};
+
+            return {
+                name: repository?.name ?? null,
+                description: repository?.description ?? null,
+
+                url: repository?.url ?? null,
+
+                stars: repository?.stargazerCount ?? 0,
+                forks: repository?.forkCount ?? 0,
+                watchers: repository?.watcherCount ?? 0,
+
+                primaryLanguage:
+                    repository?.primaryLanguage?.name ?? null,
+
+                languages:
+                    repository?.languages?.nodes?.map(
+                        (item) => item?.name
+                    ).filter(Boolean) ?? [],
+
+                defaultBranch:
+                    repository?.defaultBranchRef?.name ?? null,
+
+                license:
+                    repository?.licenseInfo?.name ?? null,
+
+                createdAt: repository?.createdAt ?? null,
+                updatedAt: repository?.updatedAt ?? null
+            };
+        }
+    });
+}
+
 const worker_map = {
     initFunc: init,
     configKey: "services.github.config",
@@ -414,6 +720,12 @@ const worker_map = {
         },
         "GithubEventsData": {
             callable: getGithubEvents,
+            key: "github.events",
+            priority: PRIORITY.medium,
+            next_run: 12 * 3600 * 1000
+        },
+        "getGithubRepoList": {
+            callable: getGithubRepoList,
             key: "github.events",
             priority: PRIORITY.medium,
             next_run: 12 * 3600 * 1000

@@ -1,5 +1,5 @@
 const { formatHeatmap, handleServiceError, PRIORITY } = require("../utils");
-const { POST } = require("../infrastructure");
+const { POST, GET } = require("../infrastructure");
 const {
     createConfigNotFoundError,
     createMissingInputError
@@ -114,21 +114,21 @@ function combineHeatmaps(years = [], matchedUser = {}) {
  * - defaults missing values to 0
  */
 function getData(stats = []) {
-    
+
     const output = { easy: 0, medium: 0, hard: 0 };
 
     for (const item of stats) {
+
         const { difficulty, count } = item ?? {};
         if (!difficulty) continue;
-        output[difficulty] = count;
+        const key = difficulty.toLowerCase();
+        if (key in output) {
+            output[key] = count ?? 0;
+        }
     }
 
-    return {
-        easy: output["Easy"] || 0,
-        medium: output["Medium"] || 0,
-        hard: output["Hard"] || 0
-    }
-};
+    return output;
+}
 
 /**
  * Fetches LeetCode stats (solved vs total by difficulty).
@@ -144,8 +144,16 @@ function getData(stats = []) {
  * {
  *   data: {
  *     username: string,
- *     solved: { easy, medium, hard },
- *     total:  { easy, medium, hard }
+ *     profileUrl: string,
+ *     avatar: string,
+ *     bio: string,
+ *     totalViews: number,
+ *     ranking: number,
+ *     reputation: number,
+ *     starRating: number,
+ *     contestBadge: any,
+ *     followers: number,
+ *     following: number
  *   },
  *   error,
  *   code
@@ -161,12 +169,30 @@ async function LeetcodeProfileData({ username }) {
 
     const query = `
     query getUserProfile($username: String!) {
-        matchedUser(username: $username){ 
-            submitStats{
-                acSubmissionNum { difficulty count }
+        matchedUser(username: $username) { 
+
+            contestBadge{
+                name
+                expired,
+                hoverText,
+                icon
+            }
+            profile {
+                userAvatar
+                aboutMe
+                ranking
+                reputation
+                starRating
+                postViewCount
             }
         }
-        allQuestionsCount {difficulty count}
+        
+        followers(userSlug: $username) {
+            allNum
+        }
+        following(userSlug: $username) {
+            allNum
+        }
     }`;
     
     if (!username) return createMissingInputError({ 
@@ -183,11 +209,172 @@ async function LeetcodeProfileData({ username }) {
         response,
         format: (data) => {
             const payload = data?.data;
+            const matchedUser = payload?.matchedUser;
+            const profileData = matchedUser?.profile
 
             return {
                 username,
-                solved: getData(payload?.matchedUser?.submitStats?.acSubmissionNum),
-                total: getData(payload?.allQuestionsCount)
+                profileUrl: `https://leetcode.com/u/${username}/`,
+                avatar: profileData?.userAvatar ?? "",
+                bio: profileData?.aboutMe ?? "",
+                totalViews: profileData?.postViewCount ?? 0,
+                ranking: profileData?.ranking ?? 0,
+                reputation: profileData?.reputation ?? 0,
+                starRating: profileData?.starRating ?? 0,
+                contestBadge: matchedUser?.contestBadge ?? null,
+                followers: payload?.followers?.allNum ?? 0,
+                following: payload?.following?.allNum ?? 0
+            }
+
+        }
+    });
+}
+
+
+/**
+ * Fetches normalized LeetCode submission statistics.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * { username: string }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: {
+ *     username: string,
+ *
+ *     submission: {
+ *       solved: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       failed: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       untouched: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       },
+ *
+ *       total: {
+ *         easy: number,
+ *         medium: number,
+ *         hard: number
+ *       }
+ *     },
+ *
+ *     languageProblemCount: [
+ *       {
+ *         languageName: string,
+ *         problemsSolved: number
+ *       }
+ *     ]
+ *   },
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - missing values default to 0
+ * - invalid difficulty entries are ignored safely
+ * - response is normalized for frontend usage
+ * - uses POST + handleServiceError
+ */
+async function LeetcodeSubmissionData({ username }) {
+    
+    // OLD SYSTEM TO RETRIEVE DATA
+    // const query = `
+    // query getUserProfile($username: String!) {
+    //     matchedUser(username: $username) {
+    //         username,
+
+    //         submitStats{
+    //             acSubmissionNum { 
+    //                 difficulty 
+    //                 count 
+    //             }
+    //         }
+
+    //     }
+    //     languageProblemCount {
+    //         languageName
+    //         problemsSolved
+    //     }
+    //     allQuestionsCount {
+    //         difficulty 
+    //         count
+    //     }
+    // }`
+
+    const query = `
+    query getUserProfile($username: String!) {
+
+        userProfileUserQuestionProgressV2(userSlug: $username){
+            numAcceptedQuestions {
+                count
+                difficulty
+            }
+            numFailedQuestions {
+                count
+                difficulty
+            }
+            numUntouchedQuestions {
+                count
+                difficulty
+            }
+        }
+        
+        allQuestionsCount {
+            difficulty 
+            count
+        }
+
+        matchedUser(username: $username){
+            languageProblemCount {
+                languageName
+                problemsSolved
+
+            }
+        }
+
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response,
+        format: (data) => {
+            const payload = data?.data;
+            const submissionV2 = payload?.userProfileUserQuestionProgressV2
+
+            return {
+                username,
+                submission: {
+                    solved: getData(submissionV2?.numAcceptedQuestions ?? {}),
+                    failed: getData(submissionV2?.numFailedQuestions ?? {}),
+                    untouched: getData(submissionV2?.numUntouchedQuestions ?? {}),
+                    total: getData(payload?.allQuestionsCount ?? {})
+                },
+                languageProblemCount: payload?.matchedUser?.languageProblemCount ?? []
             }
 
         }
@@ -255,6 +442,271 @@ async function fetchLeetcodeHeatmapLastNYears({ username, lastNYears = 10, baseY
         }
     });
 }
+
+
+/**
+ * Fetches recent public LeetCode solution articles.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * {
+ *   username: string,
+ *   skip?: number,
+ *   first?: number
+ * }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: [
+ *     {
+ *       title: string,
+ *       createdAt: string | null,
+ *       url: string
+ *     }
+ *   ],
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - skip defaults to 0
+ * - first defaults to 20
+ * - missing values are normalized safely
+ * - returns only public solution articles
+ * - generates direct LeetCode solution URLs
+ * - uses POST + handleServiceError
+ */
+async function LeetcodeRecentSolution({ username, skip = 0, limit = 20 }) {
+    const query = `
+    query userSolutionArticles( 
+        $username: String!, 
+        $skip: Int!, 
+        $limit: Int!
+    ) {
+        ugcArticleUserSolutionArticles(
+            username: $username, 
+            skip: $skip, 
+            first: $limit 
+        ) {
+            edges { 
+                node {
+                    title
+                    createdAt
+                    slug
+                    questionSlug
+                    topicId
+                }
+            }
+        }
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username, skip, limit } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response,
+        format: ( data ) => {
+            const payload = data?.data;
+            const edges = payload?.ugcArticleUserSolutionArticles?.edges ?? [];
+
+            return edges.map(({node}) => ({
+                title: node?.title ?? "",
+                createdAt: node?.createdAt ?? null,
+                url: node?.questionSlug && node?.topicId && node?.slug
+                    ? `https://leetcode.com/problems/${node.questionSlug}/solutions/${node.topicId}/${node.slug}`
+                    : null
+            }));
+        }
+    });
+}
+
+
+/**
+ * Fetches recent accepted LeetCode submissions.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * {
+ *   username: string,
+ *   limit?: number
+ * }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: [
+ *     {
+ *       id: string,
+ *       title: string,
+ *       titleSlug: string,
+ *       timestamp: string
+ *     }
+ *   ],
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - limit defaults to 20
+ * - returns only accepted submissions
+ * - timestamp is returned as unix timestamp string
+ * - uses POST + handleServiceError
+ */
+async function LeetcodeRecentSubmission({ username, limit = 20 }) {
+    const query = `
+    query recentAcSubmissions($username: String!, $limit: Int!) {
+        recentAcSubmissionList(
+            username: $username
+            limit: $limit
+        ) {
+            id
+            title
+            titleSlug
+            timestamp
+        }
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username, limit } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response,
+        format: ( data ) => {
+            const payload = data?.data;
+            const submission = payload?.recentAcSubmissionList ?? [];
+            
+            return submission.map(( item ) => ({
+                title: item?.title ?? "",
+                timestamp: item?.timestamp ?? 0,
+
+                url: item?.titleSlug 
+                    ? `https://leetcode.com/problems/${item?.titleSlug}/description/` 
+                    : null
+            }));
+        }
+    });
+}
+
+
+/**
+ * Fetches LeetCode skill/tag statistics grouped by difficulty level.
+ *
+ * ---
+ * **Input**
+ * ```js
+ * {
+ *   username: string
+ * }
+ * ```
+ *
+ * **Output (ServiceResponse)**
+ * ```js
+ * {
+ *   data: {
+ *     advanced: [
+ *       {
+ *         tagName: string,
+ *         problemsSolved: number
+ *       }
+ *     ],
+ *
+ *     intermediate: [
+ *       {
+ *         tagName: string,
+ *         problemsSolved: number
+ *       }
+ *     ],
+ *
+ *     fundamental: [
+ *       {
+ *         tagName: string,
+ *         problemsSolved: number
+ *       }
+ *     ]
+ *   },
+ *   error,
+ *   code
+ * }
+ * ```
+ *
+ * **Rules**
+ * - username is required
+ * - returns categorized tag statistics
+ * - tags are grouped into:
+ *   - advanced
+ *   - intermediate
+ *   - fundamental
+ * - safely normalizes missing response data
+ * - empty categories fallback to empty arrays
+ * - uses POST + handleServiceError
+ */
+async function leetcodeSkillStats({ username }) {
+    query = `
+    query skillStats($username: String!) {
+        matchedUser(username: $username) {
+            tagProblemCounts {
+                advanced {
+                    tagName
+                    problemsSolved
+                }
+                intermediate {
+                    tagName
+                    problemsSolved
+                }
+                fundamental {
+                    tagName
+                    problemsSolved
+                }
+            }
+        }
+    }`;
+
+    if (!username) return createMissingInputError({ 
+        field: "username", service: "LeetcodeProfileData" 
+    });
+
+    const response = await POST({
+        url: LEETCODE_API_ENDPOINT,
+        data: { query, variables: { username } },
+        headers: LEETCODE_HEADERS
+    });
+
+    return handleServiceError({
+        response, 
+        format: ( data ) => {
+            const payload = data?.data;
+            return payload?.matchedUser?.tagProblemCounts ?? {
+                advanced: [],
+                intermediate: [],
+                fundamental: []
+            };
+        }   
+    });
+}
+
 
 /**
  * @deprecated
@@ -374,18 +826,44 @@ const worker_map = {
             priority: PRIORITY.high,
             next_run: 2 * 3600 * 1000
         },
+        "LeetcodeSubmissionData": {
+            callable: LeetcodeSubmissionData,
+            key: "leetcode.submissiondata",
+            priority: PRIORITY.high,
+            next_run: 2 * 3600 * 1000
+        },
         "fetchLeetcodeHeatmapLastNYears": {
             callable: fetchLeetcodeHeatmapLastNYears,
             key: "leetcode.heatmap.history",
             priority: PRIORITY.medium,
             next_run: 24 * 3600 * 1000
         },
+        "LeetcodeRecentSolution": {
+            callable: LeetcodeRecentSolution,
+            key: "leetcode.recentsolution",
+            priority: PRIORITY.medium,
+            next_run: 24 * 3600 * 1000
+        },
+        "LeetcodeRecentSubmission": {
+            callable: LeetcodeRecentSubmission,
+            key: "leetcode.recentsubmission",
+            priority: PRIORITY.medium,
+            next_run: 24 * 3600 * 1000
+        },
+        "leetcodeSkillStats": {
+            callable: leetcodeSkillStats,
+            key: "leetcode.skillstats",
+            priority: PRIORITY.high,
+            next_run: 5 * 3600 * 1000
+        }
     }
 }
+
 
 module.exports = {
     worker_map
 }
+
 
 if (require.main === module) {
     const { runServices } = require("../utils")

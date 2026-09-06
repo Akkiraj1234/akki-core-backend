@@ -1,6 +1,9 @@
 const Fastify = require("fastify");
+const rateLimit = require("@fastify/rate-limit");
+const jwt = require("@fastify/jwt");
 const { logger } = require("../infrastructure");
 const { registerRoutes } = require("./routes");
+
 
 class Server {
     constructor({
@@ -15,7 +18,22 @@ class Server {
         this.cacheManager = cacheManager;
 
         this.app = Fastify({ logger: false });
+        this.initializeProtection();
         this.initializeRoutes();
+    }
+
+    initializeProtection() {
+        this.app.register(rateLimit, {
+            max: 100,
+            timeWindow: "1 minute"
+        });
+        
+        if (!process.env.JWT_SECRET) {
+            throw new Error("JWT_SECRET is not configured");
+        }
+        this.app.register(jwt, {
+            secret: process.env.JWT_SECRET
+        });
     }
 
     initializeRoutes() {

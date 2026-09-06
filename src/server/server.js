@@ -2,7 +2,7 @@ const Fastify = require("fastify");
 const rateLimit = require("@fastify/rate-limit");
 const jwt = require("@fastify/jwt");
 const { logger } = require("../infrastructure");
-const { registerRoutes } = require("./routes");
+const { registerRoutes } = require("./route");
 
 
 class Server {

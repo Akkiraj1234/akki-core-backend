@@ -1,4 +1,4 @@
-const { SECRET } = require("../../config");
+const { SECRET } = require("../config");
 const AUTH_KEY = SECRET.AUTH_KEY;
 
 
@@ -51,13 +51,6 @@ async function registerRoutes(app, deps = {}) {
     }
 
     const health_func = async () => {
-        return {
-            ok: true,
-            timestamp: new Date().toISOString()
-        };
-    }
-
-    const render_internal_health_func = async () => {
         return { ok: true };
     }
 
@@ -70,6 +63,16 @@ async function registerRoutes(app, deps = {}) {
             },
             cache: {
                 size: cacheManager?.size?.() ?? 0
+            }
+        }
+    }
+
+    const data_config = {
+        preHandler: protect,
+        config: {
+            rateLimit: {
+                max: 30,
+                timeWindow: "60 minute"
             }
         }
     }
@@ -94,11 +97,10 @@ async function registerRoutes(app, deps = {}) {
         };
     }
 
+    app.get("/health", health_func);
     app.post("/init", init_config, init_func);
-    app.get("/health", { preHandler: protect }, health_func);
-    app.get("/render_internal_health", render_internal_health_func);
     app.get("/state", { preHandler: protect }, state_func);
-    app.get("/data/:key", { preHandler: protect },data_key_func);
+    app.get("/data/:key", data_config, data_key_func);
 }
 
 

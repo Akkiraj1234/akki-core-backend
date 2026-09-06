@@ -733,9 +733,23 @@ const worker_map = {
     }
 }
 
+const on_demand_map = {
+    initFunc: init,
+    configKey: "services.github.config",
+    name: "Github_OnDemand",
+    fetchers: {
+        "getGithubRepoInfo": {
+            callable: getGithubRepoInfo,
+            key: "github.ondeamnd",
+            cache_time: 30 * 60 * 1000,
+        }
+    }
+}
+
 
 module.exports = {
-    worker_map
+    worker_map,
+    on_demand_map
 };
 
 

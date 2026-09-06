@@ -166,8 +166,16 @@ const worker_map = {
     }
 }
 
+const on_demand_map = {
+    initFunc: null,
+    configKey: "services.roadmap.config",
+    name: "Roadmap_OnDemand",
+    fetchers: {}
+}
+
 module.exports = {
-    worker_map
+    worker_map,
+    on_demand_map
 }
 
 if (require.main === module) {

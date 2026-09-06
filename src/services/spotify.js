@@ -579,11 +579,17 @@ const worker_map = {
     }
 }
 
+const on_demand_map = {
+    initFunc: init,
+    configKey: "services.spotify.config",
+    name: "Spotify_OnDemand",
+    fetchers: {}
+}
 
 module.exports = {
-    worker_map
-};
-
+    worker_map,
+    on_demand_map
+}
 
 if (require.main === module) {
     const { runServices } = require("../utils")

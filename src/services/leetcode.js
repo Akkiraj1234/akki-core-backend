@@ -859,9 +859,17 @@ const worker_map = {
     }
 }
 
+const on_demand_map = {
+    initFunc: null,
+    configKey: "services.leetcode.config",
+    name: "Leetcode_OnDemand",
+    fetchers: {}
+}
+
 
 module.exports = {
-    worker_map
+    worker_map,
+    on_demand_map
 }
 
 

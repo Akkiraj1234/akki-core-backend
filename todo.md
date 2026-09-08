@@ -4,12 +4,13 @@ All the tasks that need to be completed.
 
 ## v1.1
 
-* [ ] Create the `star project` feature in `service/github.js`
-* [ ] Create a heatmap data getter for one year of GitHub, LeetCode, and Roadmap data
-* [ ] Create and send the list of currently active repositories
+* [x] Create the `pinned project` feature in `service/github.js`
+* [x] Create a heatmap data getter for one year of GitHub, LeetCode, and Roadmap data
+* [x] Create and send the list of currently active repositories
 * [ ] Remove unnecessary caching
 * [ ] Remove unnecessary queries from all routes
 * [ ] Add yaml in stable branch for each new push to release source
+* [ ] create simple routes for heatmap for all 3
 
 ## v1.2
 

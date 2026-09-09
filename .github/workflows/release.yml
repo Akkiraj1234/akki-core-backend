@@ -1,0 +1,77 @@
+name: Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  validate-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Read tag and validate release.md
+        id: validate_release
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          if [ ! -f release.md ]; then
+            echo "release.md not found"
+            exit 1
+          fi
+          if ! grep -q "$TAG" release.md; then
+            echo "release.md does not reference tag $TAG"
+            exit 1
+          fi
+
+      - name: Ensure tag commit is on origin/stable
+        run: |
+          git fetch origin stable:stable || true
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/stable; then
+            echo "Tag commit ${GITHUB_SHA} is not on origin/stable"
+            exit 1
+          fi
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Pack package
+        run: |
+          PKG=$(npm pack)
+          echo "PKG=$PKG" >> $GITHUB_ENV
+
+      - name: Read release.md body
+        id: read_release
+        run: |
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat release.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG }}
+          release_name: ${{ env.TAG }}
+          body: ${{ steps.read_release.outputs.body }}
+
+      - name: Upload package to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.PKG }}
+          asset_name: ${{ env.PKG }}
+          asset_content_type: application/gzip

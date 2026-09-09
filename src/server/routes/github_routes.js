@@ -57,49 +57,42 @@ function filterHeatmap(data, from, to) {
 }
 
 async function heatmapHandler(request, databaseManager) {
-    const { from, to } = request.query;
+    // For now return only the most recent year's heatmap (no query support)
     const data = serviceData(databaseManager, "github.heatmap");
 
-    if (!data) {
-        return {
-            ok: false,
-            message: "Heatmap data not found"
-        };
-    }
+    if (!data) return { ok: false, message: "Heatmap data not found" };
 
-    // no query → return complete heatmap
+    const years = Object.keys(data?.years ?? {});
+    if (years.length === 0) return { ok: true, data: { years: {} } };
+
+    const latestYear = years.sort().slice(-1)[0];
     return {
         ok: true,
-        from: from ?? null,
-        to: to ?? null,
-        data: filterHeatmap(data, from, to)
+        year: latestYear,
+        data: { years: { [latestYear]: data.years[latestYear] } }
     };
 }
 
 async function eventsHandler(request, databaseManager) {
-    const { from, to, repo, repoName } = request.query;
+    // Return latest N events (default 10) optionally filtered by repo
+    const n = request.query?.n === undefined ? 10 : Math.max(0, Math.floor(Number(request.query.n) || 0));
+    const repo = request.query?.repo ?? request.query?.repoName ?? null;
     const data = serviceData(databaseManager, "github.events");
 
     if (!data) return { ok: false, message: "Events data not found" };
 
-    const filtered = (Array.isArray(data) ? data : []).filter((event) => {
-        const eventRepo = event?.repo?.name ?? "";
-        const matchesRepo = !(repo || repoName) || eventRepo === (repo || repoName);
-        const matchesFrom = !from || matchesDateRange(event?.createdAt, from, null);
-        const matchesTo = !to || matchesDateRange(event?.createdAt, null, to);
-        return matchesRepo && matchesFrom && matchesTo;
-    });
+    const events = Array.isArray(data) ? data : [];
+    const filtered = repo ? events.filter(e => (e?.repo?.name ?? "") === repo) : events;
+    const sliced = n === 0 ? [] : (n ? filtered.slice(0, n) : filtered);
 
-    return { ok: true, from: from ?? null, to: to ?? null, repo: repo ?? repoName ?? null, data: filtered };
+    return { ok: true, n: n === 0 ? 0 : n, repo: repo ?? null, data: sliced };
 }
 
 async function repositoriesHandler(request, databaseManager) {
-    const { limit, sort } = request.query;
+    // Support `n` to return latest N repositories; otherwise return full set
+    const n = request.query?.n === undefined ? null : Math.max(0, Math.floor(Number(request.query.n) || 0));
+    const sort = request.query?.sort ?? null;
     const data = serviceData(databaseManager, "github.repositories") ?? [];
-    const requestedLimit = limit === undefined ? null : Number(limit);
-    const boundedLimit = Number.isFinite(requestedLimit) && requestedLimit >= 0
-        ? Math.floor(requestedLimit)
-        : null;
     const repositories = Array.isArray(data) ? [...data] : [];
 
     if (String(sort).toLowerCase() === "latest" || String(sort).toLowerCase() === "updated") {
@@ -110,9 +103,9 @@ async function repositoriesHandler(request, databaseManager) {
 
     return {
         ok: true,
-        limit: boundedLimit,
-        sort: sort ?? null,
-        data: boundedLimit === null ? repositories : repositories.slice(0, boundedLimit)
+        n: n,
+        sort: sort,
+        data: n === null ? repositories : repositories.slice(0, n)
     };
 }
 
@@ -170,30 +163,26 @@ async function registerRoutes({ app, deps = {}, protect}){
         handler
     });
 
-    app.get(
-        `${ParentRoute}/profile`, config,
-        cached("profile", profileDataHandler(databaseManager))
-    );
-    app.get(
-        `${ParentRoute}/heatmap`, config,
-        cached("heatmap", async (request) => heatmapHandler(request, databaseManager))
-    );
-    app.get(
-        `${ParentRoute}/events`, config,
-        cached("events", async (request) => eventsHandler(request, databaseManager))
-    );
-    app.get(
-        `${ParentRoute}/repositories`, config,
-        cached("repositories", async (request) => repositoriesHandler(request, databaseManager))
-    );
-    app.get(
-        `${ParentRoute}/repo-info`, config,
-        cached("repo-info", repositoryInfoHandler)
-    );
-    app.get(
-        `${ParentRoute}/workingrepos`, config,
-        cached("workingrepos", async (request) => workingRepositoriesHandler(request, databaseManager))
-    );
+    // Profile: direct DB access, no route-level caching
+    app.get(`${ParentRoute}/profile`, config, profileDataHandler(databaseManager));
+
+    // Heatmap: no query, only latest year, no caching
+    app.get(`${ParentRoute}/heatmap`, config, async (request) => heatmapHandler(request, databaseManager));
+
+    // Events: cached, supports `n` (default 10) and optional `repo`
+    app.get(`${ParentRoute}/events`, config, cached("events", async (request) => eventsHandler(request, databaseManager)));
+
+    // Repositories: cached, supports `n` and optional sort
+    app.get(`${ParentRoute}/repositories`, config, cached("repositories", async (request) => repositoriesHandler(request, databaseManager)));
+
+    // Repo-info: cached always
+    app.get(`${ParentRoute}/repo-info`, config, cached("repo-info", repositoryInfoHandler));
+
+    // Rename workingrepos -> activerepo: direct DB access, no caching
+    app.get(`${ParentRoute}/activerepo`, config, async (request) => {
+        const resp = await workingRepositoriesHandler(request, databaseManager);
+        return { ok: resp.ok, data: resp.data };
+    });
 }
 
 

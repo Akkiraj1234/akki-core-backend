@@ -104,6 +104,15 @@ Service routes are organized by provider:
 
 More detailed design notes and platform documentation are available in [`docs/`](./docs/).
 
+## Removed / Archived Docs
+
+The following documents were removed from the active `docs/` tree to reduce duplication and keep the repository focused. They are intentionally deleted and summarized here for reference; recreate them from notes if needed.
+
+ - `docs/akhand_dev_blueprint.md` — personal roadmap/blueprint; removed as it duplicates high-level intent.
+ - `docs/service/service_new.md` — duplicate/alternate version of the service layer doc; the canonical version is `docs/service/service.md`.
+
+If you need the full text of any removed document, contact the repository owner or check project backups.
+
 ## Development
 
 ```bash

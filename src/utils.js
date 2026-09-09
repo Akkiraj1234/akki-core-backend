@@ -91,7 +91,7 @@ function createResponse({ data = null, error = null, code = null }) {
     return { data, error, code };
 }
 
-function handleServiceError({ response, format }) {
+async function handleServiceError({ response, format }) {
     if (response.error) {
         return createResponse({
             data: {},
@@ -99,14 +99,13 @@ function handleServiceError({ response, format }) {
             code: response.code
         });
     }
-    
+
     return createResponse({
-        data: format(response.data),
+        data: await format(response.data),
         error: response.error,
         code: response.code
     });
 }
-
 
 function isStreak(prev, curr) {
     if (prev === null || curr === null) return false;

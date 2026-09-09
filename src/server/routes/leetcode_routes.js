@@ -52,31 +52,65 @@ function limitData(data, limit) {
 async function registerRoutes({ app, deps = {}, protect }) {
     const { databaseManager, cacheManager } = deps;
     const config = protect ? { preHandler: protect } : {};
-    const route = (path, key, transform) => {
-        app.get(`/leetcode/${path}`, config, createCachedHandler({
-            cacheManager,
-            key: `leetcode:${path}`,
-            handler: async (request) => {
-                const data = serviceData(databaseManager, key);
-                return data === null
-                    ? { ok: false, message: `${key} data not found` }
-                    : { ok: true, data: transform ? transform(data, request.query ?? {}) : data };
-            }
-        }));
-    };
 
-    route("profile", "leetcode.profile");
-    route("submission", "leetcode.submissiondata");
-    route("heatmap", "leetcode.heatmap.history", (data, query) =>
-        filterHeatmap(data, query.from, query.to)
-    );
-    route("solutions", "leetcode.recentsolution", (data, query) =>
-        limitData(data, query.limit)
-    );
-    route("submissions", "leetcode.recentsubmission", (data, query) =>
-        limitData(data, query.limit)
-    );
-    route("skills", "leetcode.skillstats");
+    // Profile: direct DB access
+    app.get(`/leetcode/profile`, config, async (request) => {
+        const data = serviceData(databaseManager, "leetcode.profile");
+        return data === null ? { ok: false, message: "leetcode.profile data not found" } : { ok: true, data };
+    });
+
+    // Submission: cached latest N (default 10)
+    app.get(`/leetcode/submission`, config, createCachedHandler({
+        cacheManager,
+        key: `leetcode:submission`,
+        handler: async (request) => {
+            const n = request.query?.n === undefined ? 10 : Math.max(0, Math.floor(Number(request.query.n) || 0));
+            const data = serviceData(databaseManager, "leetcode.submissiondata") ?? [];
+            return { ok: true, n, data: n === null ? data : data.slice(0, n) };
+        }
+    }));
+
+    // Heatmap: return only 1 year, cached
+    app.get(`/leetcode/heatmap`, config, createCachedHandler({
+        cacheManager,
+        key: `leetcode:heatmap`,
+        handler: async () => {
+            const data = serviceData(databaseManager, "leetcode.heatmap.history");
+            if (!data) return { ok: false, message: "Heatmap data not found" };
+            const years = Object.keys(data?.years ?? {});
+            if (years.length === 0) return { ok: true, data: { years: {} } };
+            const latest = years.sort().slice(-1)[0];
+            return { ok: true, year: latest, data: { years: { [latest]: data.years[latest] } } };
+        }
+    }));
+
+    // Solutions: cached, support n default 10
+    app.get(`/leetcode/solutions`, config, createCachedHandler({
+        cacheManager,
+        key: `leetcode:solutions`,
+        handler: async (request) => {
+            const n = request.query?.n === undefined ? 10 : Math.max(0, Math.floor(Number(request.query.n) || 0));
+            const data = serviceData(databaseManager, "leetcode.recentsolution") ?? [];
+            return { ok: true, n, data: n === null ? data : data.slice(0, n) };
+        }
+    }));
+
+    // Submissions: cached, support n default 10
+    app.get(`/leetcode/submissions`, config, createCachedHandler({
+        cacheManager,
+        key: `leetcode:submissions`,
+        handler: async (request) => {
+            const n = request.query?.n === undefined ? 10 : Math.max(0, Math.floor(Number(request.query.n) || 0));
+            const data = serviceData(databaseManager, "leetcode.recentsubmission") ?? [];
+            return { ok: true, n, data: n === null ? data : data.slice(0, n) };
+        }
+    }));
+
+    // Skills: direct DB access (no caching)
+    app.get(`/leetcode/skills`, config, async (request) => {
+        const data = serviceData(databaseManager, "leetcode.skillstats");
+        return data === null ? { ok: false, message: "skillstats data not found" } : { ok: true, data };
+    });
 }
 
 module.exports = { registerRoutes };

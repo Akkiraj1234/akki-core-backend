@@ -60,7 +60,9 @@ class DatabaseManager {
         this.records.set(key, record);
 
         if (this.cacheManager) {
-            this.cacheManager.set(`db:${key}`, record, { ttlMs: this.cacheTTL });
+            // DB-originated cache entries should not expire automatically;
+            // keep them persistent until overwritten by a new upsert.
+            this.cacheManager.set(`db:${key}`, record, { ttlMs: 0 });
         }
 
         this._log("info", "Record upserted", { key, source });
@@ -77,7 +79,9 @@ class DatabaseManager {
 
         const record = this.records.get(key) ?? null;
         if (record && this.cacheManager) {
-            this.cacheManager.set(`db:${key}`, record, { ttlMs: this.cacheTTL });
+            // When populating cache on read, keep DB records non-expiring
+            // so they remain authoritative until overwritten by upsert.
+            this.cacheManager.set(`db:${key}`, record, { ttlMs: 0 });
         }
         return record;
     }

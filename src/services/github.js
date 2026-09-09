@@ -868,13 +868,210 @@ async function githubPinnedRepo({ username }) {
     })
 }
 
+
+function formatActiveRepoData(repositories) {
+    const projects = repositories
+        .filter((item) => item?.repository)
+        .map((item) => {
+            const repo = item.repository;
+            const contributions =
+                item?.contributions?.nodes ?? [];
+            
+            let commitCount = 0;
+            let activeDays = 0;
+            let lastActivity = null;
+
+            for (const contribution of contributions) {
+                commitCount += contribution?.commitCount ?? 0
+                const occurredAt = contribution?.occurredAt ?? null;
+                if (!occurredAt) continue;
+                activeDays++;
+                if ( !lastActivity || new Date(occurredAt) > new Date(lastActivity) ) {
+                    lastActivity = occurredAt;
+                }
+            }
+
+            return {
+                repo: {
+                    name: repo?.name ?? null,
+                    description: repo?.description ?? null,
+                    url: repo?.url ?? null,
+                    stars: repo?.stargazerCount ?? 0,
+                    forks: repo?.forkCount ?? 0,
+                    release: repo?.latestRelease ?? 0,
+
+                    languages:
+                        repo?.languages?.edges?.map((item) => ({
+                            name: item?.node?.name ?? null,
+                            color: item?.node?.color ?? null,
+                            size: item?.size ?? 0
+                        })) ?? [],
+
+                    topics:
+                        repo?.repositoryTopics?.nodes?.map(
+                            (item) => item?.topic?.name
+                        ).filter(Boolean) ?? [],
+
+                    createdAt: repo?.createdAt ?? null,
+                    updatedAt: repo?.updatedAt ?? null,
+                    isPrivate: repo?.isPrivate ?? false,
+                    isFork: repo?.isFork ?? false
+                },
+                commits: commitCount,
+                activeDays,
+                lastActivity
+            };
+        });
+    return projects;
+}
+
+function rankActiveProjects( projects ) {
+    const activeProjects = projects.filter(
+        (repo) =>
+            !repo.repo.isFork &&
+            !repo.repo.isArchived
+    );
+
+    if (!activeProjects.length) {
+        return [];
+    }
+
+    const maxCommits = Math.max(
+        ...activeProjects.map(
+            (repo) => repo.commits
+        ),
+        1
+    );
+
+    const maxActiveDays = Math.max(
+        ...activeProjects.map(
+            (repo) => repo.activeDays
+        ),
+        1
+    );
+
+    const now = Date.now();
+    const ranked = activeProjects
+        .map((repo) => {
+            const daysSinceActivity =
+                repo.lastActivity
+                    ? (now - new Date(repo.lastActivity).getTime()) / 86400000
+                    : 90;
+
+            const commitScore = repo.commits / maxCommits;
+            const frequencyScore = repo.activeDays / maxActiveDays;
+            const recencyScore = Math.exp( -daysSinceActivity / 30 );
+            const score = commitScore * 0.40 + frequencyScore * 0.35 + recencyScore * 0.25;
+            return { ...repo.repo, score };
+        })
+        .sort((a, b) => b.score - a.score);
+    
+    return ranked
+}
+
+async function populateRepoHistory(repositories, username) {
+    const query = `
+    query($owner: String! $repo: String! $after: String) {
+        repository(owner: $owner, name: $repo) {
+            defaultBranchRef {
+                target {
+                    ... on Commit {
+                        history(first: 100, after: $after) {
+                            nodes {
+                                committedDate
+                                author {
+                                    user {
+                                        login
+                                    }
+                                }
+                            }
+
+                            pageInfo {
+                                hasNextPage
+                                endCursor
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }`;
+
+    const populated = [];
+
+    for (const repository of repositories) {
+        const [owner, repo] = repository.nameWithOwner
+            ? repository.nameWithOwner.split("/")
+            : [username, repository.name];
+
+        let after = null;
+        let totalCommits = 0;
+        const activeDays = new Set();
+
+        do {
+            const response = await GITHUB_AUTH_HANDLER.handlePost(
+                (header) => POST({
+                    url: "https://api.github.com/graphql",
+                    data: {
+                        query,
+                        variables: {
+                            owner,
+                            repo,
+                            after
+                        }
+                    },
+                    headers: {
+                        ...header,
+                        "Content-Type": "application/json"
+                    }
+                })
+            );
+
+            const history =
+                response?.data?.data?.repository
+                    ?.defaultBranchRef
+                    ?.target
+                    ?.history;
+
+            if (!history) {
+                break;
+            }
+
+            for (const commit of history.nodes ?? []) {
+                if (
+                    commit?.author?.user?.login !== username
+                ) {
+                    continue;
+                }
+
+                totalCommits++;
+
+                const date = commit?.committedDate;
+
+                if (date) {
+                    activeDays.add(date.slice(0, 10));
+                }
+            }
+
+            after = history.pageInfo?.hasNextPage
+                ? history.pageInfo.endCursor
+                : null;
+
+        } while (after);
+
+        populated.push({
+            ...repository,
+            totalCommits,
+            totalActiveDays: activeDays.size
+        });
+    }
+
+    return populated;
+}
+
 async function githubActiveRepo({ username }) {
     const query = `
-    query(
-        $username: String!
-        $from: DateTime!
-        $to: DateTime!
-    ) {
+    query($username: String! $from: DateTime! $to: DateTime!) {
         user(login: $username) {
             contributionsCollection(from: $from, to: $to) {
                 commitContributionsByRepository(
@@ -882,10 +1079,34 @@ async function githubActiveRepo({ username }) {
                 ) {
                     repository {
                         name
-                        nameWithOwner
+                        description
                         url
+                        stargazerCount
+                        forkCount
+                        createdAt
+                        updatedAt
+                        isPrivate
                         isFork
-                        isArchived
+                        latestRelease {
+                            tagName
+                            publishedAt
+                        }
+                        languages(first: 10) {
+                            edges {
+                                size
+                                node { 
+                                    name
+                                    color
+                                }
+                            }
+                        }
+                        repositoryTopics(first: 10) {
+                            nodes {
+                                topic {
+                                    name
+                                }
+                            }
+                        }
                     }
 
                     contributions(first: 100) {
@@ -899,16 +1120,8 @@ async function githubActiveRepo({ username }) {
         }
     }`;
 
-    if (!username) {
-        return createMissingInputError({
-            field: "username",
-            service: "githubActiveRepo"
-        });
-    }
-
     const to = new Date();
     const from = new Date(to);
-
     from.setDate(from.getDate() - 90);
 
     const response = await GITHUB_AUTH_HANDLER.handlePost(
@@ -931,129 +1144,14 @@ async function githubActiveRepo({ username }) {
 
     return handleServiceError({
         response,
-
-        format: (data) => {
+        format: async (data) => {
             const repositories =
                 data?.data?.user?.contributionsCollection
                     ?.commitContributionsByRepository ?? [];
-
-            const projects = repositories
-                .filter((item) => item?.repository)
-                .map((item) => {
-                    const repo = item.repository;
-
-                    const contributions =
-                        item?.contributions?.nodes ?? [];
-
-                    let commitCount = 0;
-                    let activeDays = 0;
-                    let lastActivity = null;
-
-                    for (const contribution of contributions) {
-                        commitCount += contribution?.commitCount ?? 0;
-
-                        const occurredAt =
-                            contribution?.occurredAt ?? null;
-
-                        if (!occurredAt) continue;
-
-                        activeDays++;
-
-                        if (
-                            !lastActivity ||
-                            new Date(occurredAt) >
-                            new Date(lastActivity)
-                        ) {
-                            lastActivity = occurredAt;
-                        }
-                    }
-
-                    return {
-                        name: repo?.name ?? null,
-                        nameWithOwner:
-                            repo?.nameWithOwner ?? null,
-                        url: repo?.url ?? null,
-
-                        commits: commitCount,
-                        activeDays,
-
-                        lastActivity,
-
-                        isFork: repo?.isFork ?? false,
-                        isArchived:
-                            repo?.isArchived ?? false
-                    };
-                });
-
-            /*
-             * Ignore forks and archived repositories when
-             * determining active projects.
-             */
-            const activeProjects = projects.filter(
-                (repo) =>
-                    !repo.isFork &&
-                    !repo.isArchived
-            );
-
-            if (!activeProjects.length) {
-                return [];
-            }
-
-            const maxCommits = Math.max(
-                ...activeProjects.map(
-                    (repo) => repo.commits
-                ),
-                1
-            );
-
-            const maxActiveDays = Math.max(
-                ...activeProjects.map(
-                    (repo) => repo.activeDays
-                ),
-                1
-            );
-
-            const now = Date.now();
-
-            const ranked = activeProjects
-                .map((repo) => {
-                    const daysSinceActivity =
-                        repo.lastActivity
-                            ? (
-                                now -
-                                new Date(
-                                    repo.lastActivity
-                                ).getTime()
-                            ) / 86400000
-                            : 90;
-
-                    const commitScore =
-                        repo.commits / maxCommits;
-
-                    const frequencyScore =
-                        repo.activeDays /
-                        maxActiveDays;
-
-                    const recencyScore =
-                        Math.exp(
-                            -daysSinceActivity / 30
-                        );
-
-                    const score =
-                          commitScore * 0.40
-                        + frequencyScore * 0.35
-                        + recencyScore * 0.25;
-
-                    return {
-                        ...repo,
-                        score
-                    };
-                })
-                .sort(
-                    (a, b) => b.score - a.score
-                );
-
-            return ranked.slice(0, 3);
+            
+            const projects = formatActiveRepoData(repositories);
+            const ranked = rankActiveProjects(projects).slice(0, 3);
+            return populateRepoHistory(ranked, username);
         }
     });
 }

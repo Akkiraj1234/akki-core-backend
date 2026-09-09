@@ -1,110 +1,30 @@
-# HTTP Routes
+# Route reference
 
-The main API endpoint is:
-
-```text
-https://api.akhand.dev
-```
-
-For local development, replace `https://api.akhand.dev` in the examples with
-`http://localhost:3000`.
-
-## Contents
-
-- [Authentication](#authentication)
-- [Response Shapes](#response-shapes)
-- [Core Routes](#core-routes)
-- [GitHub Routes](#github-routes)
-- [LeetCode Routes](#leetcode-routes)
-- [Roadmap Routes](#roadmap-routes)
-- [Spotify Routes](#spotify-routes)
-- [Caching](#caching)
-- [Adding Routes](#adding-routes)
+This document reflects the current implementation in the repository as of 2026-09-09.
 
 ## Authentication
 
-Protected routes accept either of these authentication methods:
+Protected routes accept either of these methods:
 
-1. API key: send the configured `AUTH_KEY` in the `x-api-key` header.
-2. Frontend JWT: call `POST /init`, then send the returned token as a bearer token.
+1. API key: send `x-api-key` with the configured `AUTH_KEY`
+2. Frontend JWT: call `POST /init` and send the returned token as a bearer token
+
+### Token flow
 
 ```bash
-TOKEN=$(curl -s -X POST https://api.akhand.dev/init | jq -r .token)
-curl https://api.akhand.dev/state \
+TOKEN=$(curl -s -X POST http://localhost:3000/init | jq -r .token)
+curl http://localhost:3000/state \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-The JWT must contain the frontend user type. Requests without valid authentication receive `401 Unauthorized`.
-
-## Response Shapes
-
-### Successful response
-
-Successful route responses normally use this envelope:
-
-```json
-{
-  "ok": true,
-  "data": {}
-}
-```
-
-`data` contains the route-specific payload. For example, a profile route returns
-an object, while a list route returns an array or an object containing a list.
-
-### Error response
-
-Missing database data returns:
-
-```json
-{
-  "ok": false,
-  "message": "... data not found"
-}
-```
-
-Authentication failures return HTTP `401`:
-
-```json
-{
-  "error": "Unauthorized"
-}
-```
-
-The on-demand GitHub repository route can also return a service error:
-
-```json
-{
-  "ok": false,
-  "error": {
-    "type": "MISSING_REQUIRED_INPUT",
-    "message": "Required input 'owner' is missing."
-  },
-  "code": null
-}
-```
-
-Dates may be ISO date strings such as `2026-08-01`. For date-only `to` values, the entire day is included.
-
-## Core Routes
-
-### Section contents
-
-- [Health check](#get-health)
-- [Create frontend token](#post-init)
-- [Runtime state](#get-state)
-- [Raw database record](#get-databasekey)
-
-Core routes return small control-plane objects. `/database/:key` is the exception:
-it returns the stored record, including its `key`, `data`, `source`, and `updatedAt`
-fields.
+## Core routes
 
 ### `GET /health`
 
-Public health check.
+Public health endpoint.
 
 ```bash
-curl https://api.akhand.dev/health
+curl http://localhost:3000/health
 ```
 
 Response:
@@ -115,10 +35,10 @@ Response:
 
 ### `POST /init`
 
-Creates a frontend JWT valid for one hour. This endpoint is rate limited to five requests per minute.
+Creates a frontend JWT valid for 1 hour.
 
 ```bash
-curl -X POST https://api.akhand.dev/init
+curl -X POST http://localhost:3000/init
 ```
 
 Response:
@@ -133,277 +53,197 @@ Response:
 
 ### `GET /state`
 
-Returns database and response-cache information. Authentication required.
-
-```bash
-curl https://api.akhand.dev/state \
-  -H "Authorization: Bearer $TOKEN"
-```
+Returns the current database snapshot and cache size.
 
 ### `GET /database/:key`
 
-Returns a raw database record by key. Authentication required.
+Returns the stored raw record for a database key.
 
 ```bash
-curl https://api.akhand.dev/database/github.profile \
+curl http://localhost:3000/database/github.profile \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## GitHub Routes
+## Combined heatmap route
 
-GitHub data is collected by the scheduled GitHub service and served from the database. The configured GitHub username is used by the worker; these routes do not accept a username.
+### `GET /gernal/heatmap`
 
-All GitHub routes require authentication.
+This route is intentionally named with the historical typo `gernal` because the route file is named `gernal_routes.js`.
 
-- [Stored profile](#get-githubprofile)
-- [Contribution heatmap](#get-githubheatmap)
-- [Events](#get-githubevents)
-- [Repositories](#get-githubrepositories)
-- [On-demand repository information](#get-githubrepo-info)
-- [Working repositories](#get-githubworkingrepos)
+It returns the latest stored year for each provider when data is available:
 
-GitHub service responses return `{ ok, data }`. The `data` value is an object for
-profile and heatmap routes, and an array for events and repositories. The working
-repository route returns an array of objects with `name`, `started_at`, `ended_at`,
-`description`, `commits`, `release_version`, `topics`, `languages`, `star`, and
-`active_days` fields.
+- GitHub: `github.heatmap`
+- LeetCode: `leetcode.heatmap.history`
+- Roadmap: `roadmap.profile.activity.heatmap`
 
-| Route | `data` shape |
-| --- | --- |
-| `/github/profile` | `{ username, avatar, profileUrl, repoUrl, bio, publicRepos, followers, following }` |
-| `/github/heatmap` | `{ years: { [year]: { heatmap, currentStreak, longestStreak, totalActiveDays, totalContributions } }, global }` |
-| `/github/events` | Array of `{ id, type, createdAt, public, repo, actor }` |
-| `/github/repositories` | Array of `{ name, description, url, stars, forks, languages, topics, createdAt, updatedAt, isPrivate, isFork }` |
-| `/github/repo-info` | `{ name, description, url, stars, forks, watchers, primaryLanguage, languages, defaultBranch, license, createdAt, updatedAt }` |
-| `/github/workingrepos` | Array of working-repository objects shown below |
-
-### `GET /github/profile`
-
-Returns the stored GitHub profile.
-
-### `GET /github/heatmap`
-
-Returns the contribution heatmap. Optional query parameters:
-
-| Parameter | Description |
-| --- | --- |
-| `from` | Include contributions on or after this date. |
-| `to` | Include contributions through this date. |
-
-```bash
-curl "https://api.akhand.dev/github/heatmap?from=2026-01-01&to=2026-08-31" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### `GET /github/events`
-
-Returns stored GitHub events. Optional query parameters:
-
-| Parameter | Description |
-| --- | --- |
-| `from` | Event date lower bound. |
-| `to` | Event date upper bound. |
-| `repo` | Exact repository name, for example `Akkiraj1234/project`. |
-| `repoName` | Alias for `repo`. |
-
-```bash
-curl "https://api.akhand.dev/github/events?repo=Akkiraj1234/project&from=2026-08-01" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### `GET /github/repositories`
-
-Returns stored repositories. Optional query parameters:
-
-| Parameter | Description |
-| --- | --- |
-| `limit` | Maximum number of repositories to return. |
-| `sort` | Use `latest` or `updated` to sort by `updatedAt` descending. |
-
-```bash
-curl "https://api.akhand.dev/github/repositories?limit=5&sort=latest" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### `GET /github/repo-info`
-
-Fetches detailed information directly from GitHub using the on-demand service. Required query parameters:
-
-| Parameter | Description |
-| --- | --- |
-| `owner` | Repository owner or organization. |
-| `repo` | Repository name. |
-
-```bash
-curl "https://api.akhand.dev/github/repo-info?owner=Akkiraj1234&repo=akki-core-backend" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### `GET /github/workingrepos`
-
-Returns working repositories from the database-backed working-repository record. Optional `from` and `to` parameters select repositories whose active period overlaps the requested range.
-
-Expected item shape:
-
-```json
-{
-  "name": "shipyard",
-  "started_at": "2026-08-09",
-  "ended_at": null,
-  "description": "Project description",
-  "commits": 67,
-  "release_version": "v0.1",
-  "topics": ["Developer Tools"],
-  "languages": { "Python": 72, "C++": 18, "JavaScript": 10 },
-  "star": 0,
-  "active_days": 45
-}
-```
-
-## LeetCode Routes
-
-LeetCode data is collected for the configured account and served from scheduled database records. All routes require authentication.
-
-- [Profile and submission data](#leetcode-data-routes)
-- [Heatmap](#leetcode-heatmap)
-- [Recent solutions and submissions](#leetcode-lists)
-
-LeetCode routes return `{ ok, data }`. Profile, submission, and skill routes return
-objects. The heatmap returns a yearly heatmap object. Recent solutions and recent
-submissions return arrays.
-
-| Route | `data` shape |
-| --- | --- |
-| `/leetcode/profile` | Profile, ranking, reputation, followers, following, and contest badge fields |
-| `/leetcode/submission` | `{ username, submission: { solved, failed, untouched, total }, ... }` |
-| `/leetcode/skills` | `{ advanced, intermediate, fundamental }` arrays of tag statistics |
-| `/leetcode/heatmap` | `{ years, global }`, containing `{ date, count }` heatmap entries |
-| `/leetcode/solutions` | Array of `{ title, createdAt, url }` |
-| `/leetcode/submissions` | Array of `{ title, timestamp, url }` |
-
-### LeetCode data routes
-
-| Route | Database data |
-| --- | --- |
-| `GET /leetcode/profile` | Profile and contest information. |
-| `GET /leetcode/submission` | Solved, failed, untouched, and total question counts. |
-| `GET /leetcode/skills` | Fundamental, intermediate, and advanced tag statistics. |
-| `GET /leetcode/heatmap` | Submission heatmap history. |
-| `GET /leetcode/solutions` | Recent solution articles. |
-| `GET /leetcode/submissions` | Recent accepted submissions. |
-
-The heatmap accepts `from` and `to` query parameters:
-
-### LeetCode heatmap
-
-```bash
-curl "https://api.akhand.dev/leetcode/heatmap?from=2026-01-01&to=2026-08-31" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-The solution and submission routes accept an optional `limit`:
-
-### LeetCode lists
-
-```bash
-curl "https://api.akhand.dev/leetcode/solutions?limit=10" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-## Roadmap Routes
-
-- [Profile](#get-roadmapprofile)
-
-Roadmap returns `{ ok, data }`, where `data` is the stored profile object. Its
-`activity.heatmap` array is filtered when `from` or `to` is provided.
+Response shape:
 
 ```json
 {
   "ok": true,
   "data": {
-    "name": "Akhand",
-    "avatar": "https://assets.roadmap.sh/avatars/...",
-    "customRoadmaps": [],
-    "onboardingInfo": {},
-    "activity": {
-      "heatmap": [{ "date": 1723161600000, "count": 2 }],
-      "total": 2
-    },
-    "roadmap": []
+    "github": { "year": "2025", "data": { "years": { "2025": { ... } } } },
+    "leetcode": { "year": "2025", "data": { "years": { "2025": { ... } } } },
+    "roadmap": { "year": "2025", "data": { "years": { "2025": { ... } } } }
   }
 }
 ```
 
-### `GET /roadmap/profile`
+## GitHub routes
 
-Returns the stored roadmap.sh profile, including activity and roadmaps. Optional `from` and `to` filter the activity heatmap.
+All GitHub routes require authentication.
+
+| Route | Current behavior |
+| --- | --- |
+| `GET /github/profile` | Returns stored `github.profile` directly from the database |
+| `GET /github/heatmap` | Returns only the most recent year from `github.heatmap` |
+| `GET /github/events` | Cached route; supports `n` and optional `repo` / `repoName` filter |
+| `GET /github/repositories` | Cached route; supports `n` and optional `sort=latest/updated` |
+| `GET /github/repo-info` | On-demand GitHub fetch using the GitHub service adapter |
+| `GET /github/activerepo` | Returns stored `github.activerepo` data directly |
+
+### GitHub query parameters
+
+#### `GET /github/events`
+
+- `n`: number of events to return, default `10`
+- `repo`: exact repository name filter
+- `repoName`: alias for `repo`
+
+Example:
 
 ```bash
-curl "https://api.akhand.dev/roadmap/profile?from=2026-01-01&to=2026-08-31" \
+curl "http://localhost:3000/github/events?n=5&repo=Akkiraj1234/project" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Spotify Routes
+#### `GET /github/repositories`
 
-Spotify data is collected for the configured account. All routes require authentication.
+- `n`: number of repositories to return
+- `sort`: `latest` or `updated`
 
-- [Profile and playback](#spotify-profile-and-playback)
-- [Playlists and listening lists](#spotify-lists)
-
-Spotify routes return `{ ok, data }`. Profile, playback, and playlist responses
-return objects. Recently played and top tracks return objects with a `tracks` array;
-top artists returns an object with an `artists` array.
-
-| Route | `data` shape |
-| --- | --- |
-| `/spotify/profile` | `{ userId, username, images, profile_url, followers }` |
-| `/spotify/current-playing` | `{ is_playing, track, progress: { current, duration } }` |
-| `/spotify/playlists` | `{ total, playlists: [{ id, name, description, url, cover }] }` |
-| `/spotify/recently-played` | `{ tracks: [{ title, artist, cover, url }] }` |
-| `/spotify/top-tracks` | `{ tracks: [{ title, artist, cover, url }] }` |
-| `/spotify/top-artists` | `{ artists: [{ name, url, cover }] }` |
-
-### Spotify profile and playback
-
-| Route | Returned data |
-| --- | --- |
-| `GET /spotify/profile` | User profile information. |
-| `GET /spotify/current-playing` | Current playback state and track. |
-| `GET /spotify/playlists` | User playlists. |
-| `GET /spotify/recently-played` | Recently played tracks. |
-| `GET /spotify/top-tracks` | Top tracks. |
-| `GET /spotify/top-artists` | Top artists. |
-
-The list routes accept an optional `limit` query parameter:
-
-### Spotify lists
+Example:
 
 ```bash
-curl "https://api.akhand.dev/spotify/top-tracks?limit=10" \
+curl "http://localhost:3000/github/repositories?n=5&sort=latest" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Caching
+### Important note on GitHub heatmap filters
 
-Service route responses are cached through the shared `CacheManager` for 30 seconds. The cache key includes the route and sorted query parameters, so these requests have separate cache entries:
+The current route implementation returns only the latest year and does not apply `from` / `to` filtering in the handler.
 
-```text
-GET /spotify/top-tracks?limit=5
-GET /spotify/top-tracks?limit=10
+## LeetCode routes
+
+All LeetCode routes require authentication.
+
+| Route | Current behavior |
+| --- | --- |
+| `GET /leetcode/profile` | Returns stored `leetcode.profile` directly |
+| `GET /leetcode/submission` | Cached route; supports `n` and returns the latest `n` entries |
+| `GET /leetcode/heatmap` | Returns only the latest year from `leetcode.heatmap.history` |
+| `GET /leetcode/solutions` | Cached route; supports `n` |
+| `GET /leetcode/submissions` | Cached route; supports `n` |
+| `GET /leetcode/skills` | Returns stored `leetcode.skillstats` directly |
+
+### LeetCode query parameters
+
+- `GET /leetcode/submission?n=10`
+- `GET /leetcode/solutions?n=10`
+- `GET /leetcode/submissions?n=10`
+
+### Important note on LeetCode heatmap filters
+
+The current route handler does not apply `from` / `to` filters; it always returns the latest year only.
+
+## Roadmap routes
+
+All Roadmap routes require authentication.
+
+| Route | Current behavior |
+| --- | --- |
+| `GET /roadmap/profile` | Returns stored roadmap profile, excluding `activity.heatmap` from the response |
+| `GET /roadmap/heatmap` | Returns a year-grouped activity heatmap keyed by the latest year found |
+
+### Important note
+
+The current `GET /roadmap/profile` route does not currently apply `from` / `to` filtering even though older documentation may suggest that it does.
+
+## Spotify routes
+
+All Spotify routes require authentication.
+
+| Route | Current behavior |
+| --- | --- |
+| `GET /spotify/profile` | Cached route, reads `spotify.profile_info` |
+| `GET /spotify/current-playing` | Direct database read; no route cache |
+| `GET /spotify/playlists` | Cached route, reads `spotify.user_playlists` |
+| `GET /spotify/recently-played` | Cached route, reads `spotify.recently_played` |
+| `GET /spotify/top-tracks` | Cached route, reads `spotify.top_tracks` |
+| `GET /spotify/top-artists` | Cached route, reads `spotify.top_artists` |
+
+### Spotify query parameters
+
+- `n`: optional limit for cached list routes
+
+Example:
+
+```bash
+curl "http://localhost:3000/spotify/top-tracks?n=5" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-Only successful responses are cached. Missing-data and error responses are fetched again. The cache is an optimization; clients should treat the scheduled database data as eventually updated rather than real-time.
+## Response patterns
 
-## Adding Routes
+The current routes generally follow one of these shapes:
 
-The central router automatically scans `src/server/routes` and loads every JavaScript module that exports `registerRoutes`:
+### Success envelope
 
-```js
-async function registerRoutes({ app, deps, protect }) {
-    // Register routes here.
+```json
+{
+  "ok": true,
+  "data": {}
 }
-
-module.exports = { registerRoutes };
 ```
 
-`gernal_routes.js` is currently reserved and is not documented as an application data route.
+### Error envelope
+
+```json
+{
+  "ok": false,
+  "message": "Record not found"
+}
+```
+
+### On-demand service error envelope
+
+```json
+{
+  "ok": false,
+  "error": {
+    "type": "MISSING_REQUIRED_INPUT",
+    "message": "Required input 'owner' is missing."
+  },
+  "code": null
+}
+```
+
+## Cache behavior
+
+The current cache implementation is:
+
+- route-level in-memory cache
+- default TTL: 60 seconds
+- cache keys are built from route + serialized query string
+- only successful responses are cached
+- database-originated records are kept non-expiring until replaced by a new record
+
+## Current caveats
+
+These are real implementation notes that should be treated as documentation of what is working today:
+
+- `GET /gernal/heatmap` is present by design but uses the historical typo in the path
+- `GET /github/heatmap`, `GET /leetcode/heatmap`, and `GET /roadmap/heatmap` currently return only the most recent year
+- `GET /roadmap/profile` does not currently apply `from` / `to` filtering
+- `GET /github/repo-info` depends on the upstream GitHub adapter and can fail if the upstream response is not in the expected shape
+- the project currently stores records in memory, so restarts clear the database state

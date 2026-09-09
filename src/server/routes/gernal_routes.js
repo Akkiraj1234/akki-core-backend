@@ -27,7 +27,7 @@ async function registerRoutes({ app, deps = {}, protect }) {
                 const github = serviceData(databaseManager, "github.heatmap");
                 const leetcode = serviceData(databaseManager, "leetcode.heatmap.history");
                 const roadmap = serviceData(databaseManager, "roadmap.profile");
-
+                
                 const githubLatest = github ? latestYearFrom(github) : null;
                 const leetcodeLatest = leetcode ? latestYearFrom(leetcode) : null;
                 // roadmap stores activity heatmap in either normalized format

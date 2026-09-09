@@ -1,137 +1,105 @@
-# 🧠 akki-core-backend
+# akki-core-backend
 
-> **A small orchestration layer for turning external services into reliable application data.**
+A small orchestration layer that turns external services into reliable, queryable application data.
 
-Applications often depend on multiple external services, each with different APIs, response formats, authentication models, limits, and failure modes.
+This backend is designed to sit between provider APIs and the app layer. It fetches data, normalizes it, stores it, caches route responses, and exposes a consistent HTTP surface for downstream clients.
 
-`akki-core-backend` sits between those services and the application, handling the work around the data — fetching, normalizing, scheduling, storing, caching, and exposing it through an API.
+## What this project currently does
 
-## The Idea
+- Collects and stores scheduled data from GitHub, LeetCode, Roadmap.sh, and Spotify
+- Runs background service tasks through the ORBIT/TASK pattern
+- Exposes protected HTTP routes for profile, event, heatmap, list, and on-demand data
+- Uses in-memory database records plus route-level caching for faster reads
+- Supports frontend JWT creation and API-key authentication
 
-```text
-                 External Services
-                         │
-                         ▼
-                  Service Layer
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-         Scheduled              On-Demand
-              │                     │
-            ORBIT                  Route
-              │                     │
-             TASK                 Cache
-              │                     │
-           FETCHER              FETCHER
-              │                     │
-           Database           External API
-              │
-              ▼
-              API
-```
-
-The system has two main paths:
-
-* **Scheduled** — recurring data is collected and persisted.
-* **On-demand** — request-specific data is fetched when needed.
-
-Each layer has a focused responsibility. Services handle external platforms, workers handle background execution, the database holds collected state, and routes expose application behavior.
-
-## Principles
-
-* **Separate the work.** Fetching, orchestration, storage, caching, and HTTP are different concerns.
-* **Normalize early.** Provider-specific differences stay inside their service adapters.
-* **Collect when useful.** Frequently used data can be collected in advance.
-* **Fetch when necessary.** Request-specific data stays on the on-demand path.
-* **Keep state useful.** Stored data remains available when external services are unavailable.
-* **Prefer simple boundaries.** Every component should have a clear responsibility.
-
-> **The backend is not the service. It is the layer that makes services usable.**
-
-## Integrations
-
-Currently supported:
-
-* GitHub
-* LeetCode
-* Roadmap.sh
-* Spotify
-
-The runtime also provides:
-
-* ORBIT / TASK background orchestration
-* Scheduled data collection
-* Database snapshots
-* On-demand execution
-* Cache management
-* Fastify HTTP routes
-* JWT and API-key authentication
-* Request rate limiting
-
-## API
-
-Production API:
-
-[api.akhand.dev](https://api.akhand.dev?utm_source=chatgpt.com)
-
-Health check:
-
-```bash
-curl https://api.akhand.dev/health
-```
-
-Protected endpoints can be accessed using a short-lived JWT or the configured API key.
-
-Service routes are organized by provider:
+## Runtime architecture
 
 ```text
-/github/*
-/leetcode/*
-/roadmap/*
-/spotify/*
+External services
+      │
+      ▼
+  src/services
+      │
+      ▼
+  ORBIT / TASK scheduler
+      │
+      ▼
+  src/server/storage
+  (DatabaseManager + CacheManager)
+      │
+      ▼
+  Fastify routes
+      │
+      ▼
+  API clients / frontend apps
 ```
+
+## Current integrations
+
+- GitHub
+- LeetCode
+- Roadmap.sh
+- Spotify
+
+## API surface at a glance
+
+### Core routes
+
+- `GET /health`
+- `POST /init`
+- `GET /state`
+- `GET /database/:key`
+- `GET /gernal/heatmap`
+
+### Service routes
+
+- GitHub: `/github/profile`, `/github/heatmap`, `/github/events`, `/github/repositories`, `/github/repo-info`, `/github/activerepo`
+- LeetCode: `/leetcode/profile`, `/leetcode/submission`, `/leetcode/heatmap`, `/leetcode/solutions`, `/leetcode/submissions`, `/leetcode/skills`
+- Roadmap: `/roadmap/profile`, `/roadmap/heatmap`
+- Spotify: `/spotify/profile`, `/spotify/current-playing`, `/spotify/playlists`, `/spotify/recently-played`, `/spotify/top-tracks`, `/spotify/top-artists`
 
 ## Documentation
 
-| Document                                               | Purpose                     |
-| ------------------------------------------------------ | --------------------------- |
-| [`docs/routes.md`](./docs/routes.md)                   | HTTP API and route behavior |
-| [`docs/architecture.md`](./docs/architecture.md)       | System architecture         |
-| [`docs/contracts.md`](./docs/contracts.md)             | Runtime contracts           |
-| [`docs/config.md`](./docs/config.md)                   | Configuration               |
-| [`docs/service/service.md`](./docs/service/service.md) | Service architecture        |
-| [`docs/service/output.md`](./docs/service/output.md)   | Service output structures   |
+| Document | Purpose |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | Current runtime architecture and component flow |
+| [docs/routes.md](docs/routes.md) | Route reference, auth, query parameters, and caveats |
+| [docs/known-issues.md](docs/known-issues.md) | Known implementation gaps and current limitations |
+| [docs/service/service.md](docs/service/service.md) | Service-layer contract and normalization rules |
+| [docs/service/output.md](docs/service/output.md) | Service output shape notes |
 
-More detailed design notes and platform documentation are available in [`docs/`](./docs/).
-
-## Removed / Archived Docs
-
-The following documents were removed from the active `docs/` tree to reduce duplication and keep the repository focused. They are intentionally deleted and summarized here for reference; recreate them from notes if needed.
-
- - `docs/akhand_dev_blueprint.md` — personal roadmap/blueprint; removed as it duplicates high-level intent.
- - `docs/service/service_new.md` — duplicate/alternate version of the service layer doc; the canonical version is `docs/service/service.md`.
-
-If you need the full text of any removed document, contact the repository owner or check project backups.
-
-## Development
+## Local setup
 
 ```bash
 npm install
 npm start
 ```
 
-The development server runs on `http://localhost:3000` by default.
+The app starts on `http://localhost:3000` by default.
 
-Provider credentials and application secrets must be supplied through the local environment and must never be committed.
+## Environment and secrets
 
-## Status
+Provider credentials and application secrets must be supplied through the local environment and should never be committed to source control.
 
-`akki-core-backend` is an actively evolving project. The architecture is intentionally kept small as new services and execution patterns are introduced.
+## Current implementation notes
+
+This repository is actively evolving. The current code already exposes a working route layer and scheduler, but some parts are still best understood as scaffolding rather than a fully finished orchestration platform.
+
+Notable items:
+
+- The route cache is implemented with a default TTL of 60 seconds.
+- Database-originated cache entries are intentionally kept non-expiring until they are overwritten by a new upsert.
+- Some route handlers are direct database reads, while others are cached route responses.
+- A few documented behaviors are currently not implemented in the route code exactly as described in older docs.
+
+## Development
+
+```bash
+npm test
+```
 
 ## License
 
-Source available for **educational viewing only**.
+Source is available for educational viewing only.
 
-Reuse, modification, and redistribution are not permitted.
-
-See [`Licence.md`](./Licence.md) for the complete terms.
+See [Licence.md](Licence.md) for the full licensing terms.

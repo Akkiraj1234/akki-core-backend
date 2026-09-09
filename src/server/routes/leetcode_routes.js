@@ -59,7 +59,7 @@ async function registerRoutes({ app, deps = {}, protect }) {
         return data === null ? { ok: false, message: "leetcode.profile data not found" } : { ok: true, data };
     });
 
-    // Submission: cached latest N (default 10)
+    // Submission: cached latest N (default 10):: imporant does not work rn api error
     app.get(`/leetcode/submission`, config, createCachedHandler({
         cacheManager,
         key: `leetcode:submission`,

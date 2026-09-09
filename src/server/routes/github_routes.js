@@ -13,7 +13,6 @@ function profileDataHandler(databaseManager) {
     };
 }
 
-
 function parseDate(value) {
     if (!value) return null;
     const timestamp = new Date(value).getTime();
@@ -138,17 +137,12 @@ function filterWorkingRepositories(data, from, to) {
 }
 
 async function workingRepositoriesHandler(request, databaseManager) {
-    const { from, to } = request.query;
-    const record = ["github.workingrepos", "github.workingrepo", "workingrepos"]
-        .map((key) => databaseManager?.get?.(key))
-        .find(Boolean);
+    const record = databaseManager?.get?.("github.activerepo")
     const data = record?.data?.data ?? record?.data ?? [];
-
+    
     return {
         ok: true,
-        from: from ?? null,
-        to: to ?? null,
-        data: filterWorkingRepositories(data, from, to)
+        data: data
     };
 }
 
@@ -175,14 +169,11 @@ async function registerRoutes({ app, deps = {}, protect}){
     // Repositories: cached, supports `n` and optional sort
     app.get(`${ParentRoute}/repositories`, config, cached("repositories", async (request) => repositoriesHandler(request, databaseManager)));
 
-    // Repo-info: cached always
+    // Repo-info: cached always :: importantn does not work right now api error okay
     app.get(`${ParentRoute}/repo-info`, config, cached("repo-info", repositoryInfoHandler));
 
     // Rename workingrepos -> activerepo: direct DB access, no caching
-    app.get(`${ParentRoute}/activerepo`, config, async (request) => {
-        const resp = await workingRepositoriesHandler(request, databaseManager);
-        return { ok: resp.ok, data: resp.data };
-    });
+    app.get(`${ParentRoute}/activerepo`, config, async (request) => workingRepositoriesHandler(request, databaseManager));
 }
 
 

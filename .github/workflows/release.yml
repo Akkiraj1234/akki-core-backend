@@ -54,12 +54,8 @@ jobs:
         run: |
           PKG=$(npm pack)
           echo "PKG=$PKG" >> "$GITHUB_ENV"
-
+      
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes-file release.md \
-            "$PKG"`
+        run: gh release create "$TAG" --title "$TAG" --notes-file release.md "$PKG"

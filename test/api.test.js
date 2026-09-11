@@ -51,6 +51,18 @@ describe('API routes', () => {
     expect(body.data.username).toBe('akhand');
   });
 
+  test('allows CORS preflight from the frontend', async () => {
+    const res = await server.app.inject({
+      method: 'OPTIONS',
+      url: '/github/profile',
+      headers: { origin: 'http://localhost:5174' }
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5174');
+    expect(res.headers['access-control-allow-headers']).toBe('Authorization, Content-Type');
+  });
+
   test('GET /github/events?n=1 returns one event', async () => {
     const res = await server.app.inject({ method: 'GET', url: '/github/events?n=1', headers: { Authorization: `Bearer ${token}` } });
     expect(res.statusCode).toBe(200);

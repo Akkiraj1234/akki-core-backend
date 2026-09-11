@@ -4,6 +4,19 @@ const jwt = require("@fastify/jwt");
 const { logger } = require("../infrastructure");
 const { registerRoutes } = require("./route");
 
+const DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5174",
+    "https://akhand.dev"
+];
+
+function getCorsOrigins() {
+    const origins = process.env.CORS_ORIGINS
+        ?.split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+
+    return origins?.length ? origins : DEFAULT_CORS_ORIGINS;
+}
 
 class Server {
     constructor({
@@ -19,7 +32,27 @@ class Server {
 
         this.app = Fastify({ logger: false });
         this.initializeProtection();
+        this.initializeCors();
         this.initializeRoutes();
+    }
+
+    initializeCors() {
+        const allowedOrigins = new Set(getCorsOrigins());
+
+        this.app.addHook("onRequest", async (request, reply) => {
+            const origin = request.headers.origin;
+
+            if (!allowedOrigins.has(origin)) return;
+
+            reply.header("Access-Control-Allow-Origin", origin);
+            reply.header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+            reply.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            reply.header("Vary", "Origin");
+
+            if (request.method === "OPTIONS") {
+                return reply.code(204).send();
+            }
+        });
     }
 
     initializeProtection() {
